@@ -1,3 +1,4 @@
+import { useLanguage } from '../../data/language';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { View } from 'react-native';
@@ -8,17 +9,19 @@ import { buildRecipe, type IngredientDraft, type Recipe } from '../../domain/rec
 type IngredientRow = IngredientDraft & { key: number };
 
 export default function RecipeFormRoute() {
+  const { t } = useLanguage();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { data } = useKitchen();
   const recipe = id ? data.recipes.find((item) => item.id === Number(id)) : undefined;
 
   if (id && !recipe) {
-    return <Page title="编辑菜谱" detail><Empty icon="book-outline" title="找不到这道菜" description="返回菜谱列表查看其他菜谱。" /></Page>;
+    return <Page title={t("编辑菜谱")} detail><Empty icon="book-outline" title={t("找不到这道菜")} description={t("返回菜谱列表查看其他菜谱。")} /></Page>;
   }
   return <RecipeForm key={id ?? 'new'} recipe={recipe} />;
 }
 
 function RecipeForm({ recipe }: { recipe?: Recipe }) {
+  const { t } = useLanguage();
   const router = useRouter();
   const { write } = useKitchen();
   const { run, busy } = useTask();
@@ -36,45 +39,45 @@ function RecipeForm({ recipe }: { recipe?: Recipe }) {
   }
 
   return (
-    <Page title={recipe ? '编辑菜谱' : '新增菜谱'} detail>
+    <Page title={recipe ? t("编辑菜谱") : t("新增菜谱")} detail>
       <Card>
-        <Field label="菜名" placeholder="例如番茄炒蛋" value={title} onChangeText={setTitle} />
-        <Field label="分类（选填）" placeholder="例如家常菜" value={category} onChangeText={setCategory} />
-        <Field label="小红书原文（选填）" placeholder="粘贴链接或分享文字" value={source} onChangeText={setSource}
+        <Field label={t("菜名")} placeholder={t("例如番茄炒蛋")} value={title} onChangeText={setTitle} />
+        <Field label={t("分类（选填）")} placeholder={t("例如家常菜")} value={category} onChangeText={setCategory} />
+        <Field label={t("小红书原文（选填）")} placeholder={t("粘贴链接或分享文字")} value={source} onChangeText={setSource}
           autoCapitalize="none" autoCorrect={false} multiline />
-        <Body>只有链接也可以保存。补全菜名、食材和步骤后会取消「待整理」。</Body>
+        <Body>{t("只有链接也可以保存。补全菜名、食材和步骤后会取消「待整理」。")}</Body>
       </Card>
       <Card>
-        <Heading>食材</Heading>
-        <Body>只填名称也可以。需要自动汇总用量时，请同时填写数量和单位。</Body>
+        <Heading>{t("食材")}</Heading>
+        <Body>{t("只填名称也可以。需要自动汇总用量时，请同时填写数量和单位。")}</Body>
         {ingredients.map((item, index) => (
           <View key={item.key} style={ui.stack}>
             <Row>
               <View style={ui.grow}>
-                <Field label={`食材 ${index + 1}`} placeholder="名称" value={item.name} onChangeText={(value) => updateIngredient(item.key, 'name', value)} />
+                <Field label={t("食材 {0}", index + 1)} placeholder={t("名称")} value={item.name} onChangeText={(value) => updateIngredient(item.key, 'name', value)} />
               </View>
-              <Action label="移除" variant="danger" onPress={() => setIngredients((rows) => rows.filter((row) => row.key !== item.key))} />
+              <Action label={t("移除")} variant="danger" onPress={() => setIngredients((rows) => rows.filter((row) => row.key !== item.key))} />
             </Row>
             <Row>
               <View style={ui.grow}>
-                <Field label="数量" placeholder="例如 200" keyboardType="decimal-pad" value={item.quantity}
+                <Field label={t("数量")} placeholder={t("例如 200")} keyboardType="decimal-pad" value={item.quantity}
                   onChangeText={(value) => updateIngredient(item.key, 'quantity', value)} />
               </View>
               <View style={ui.grow}>
-                <Field label="单位" placeholder="例如 克、个" value={item.unit} onChangeText={(value) => updateIngredient(item.key, 'unit', value)} />
+                <Field label={t("单位")} placeholder={t("例如 克、个")} value={item.unit} onChangeText={(value) => updateIngredient(item.key, 'unit', value)} />
               </View>
             </Row>
           </View>
         ))}
-        <Action label="添加食材" icon="add" variant="quiet" onPress={() => {
+        <Action label={t("添加食材")} icon="add" variant="quiet" onPress={() => {
           const key = nextKey.current++;
           setIngredients((rows) => [...rows, { key, name: '', quantity: '', unit: '' }]);
         }} />
       </Card>
       <Card>
-        <Field label="烹饪步骤" placeholder="每行填写一个步骤" multiline value={steps} onChangeText={setSteps} />
+        <Field label={t("烹饪步骤")} placeholder={t("每行填写一个步骤")} multiline value={steps} onChangeText={setSteps} />
       </Card>
-      <Action label={busy ? '保存中…' : '保存菜谱'} disabled={busy} onPress={() => void run(async () => {
+      <Action label={busy ? t("保存中…") : t("保存菜谱")} disabled={busy} onPress={() => void run(async () => {
         const input = buildRecipe({ title, category, source, steps, ingredients });
         const id = await write((actions) => actions.saveRecipe(input, recipe?.id));
         if (recipe) router.back();

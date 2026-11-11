@@ -32,3 +32,15 @@ test('flags unknown and incompatible quantities without converting across dimens
   assert.equal(missingIngredients(ingredients, [{ name: '牛奶', quantity: 0.2, unit: 'L' }]).length, 0);
   assert.equal(missingIngredients(ingredients, [{ name: '牛奶', quantity: null, unit: '' }])[0].needsReview, true);
 });
+
+test('matches a built-in ingredient against stock entered in English', () => {
+  const required = [
+    { name: '番茄', quantity: 300, unit: '克' },
+    { name: '鸡蛋', quantity: 3, unit: '个' },
+  ];
+  const stock = [
+    { name: 'Tomatoes', quantity: 100, unit: 'g' },
+    { name: 'eggs', quantity: 3, unit: 'each' },
+  ];
+  assert.deepEqual(missingIngredients(required, stock).map(({ name, quantity }) => [name, quantity]), [['番茄', 200]]);
+});

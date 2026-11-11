@@ -6,6 +6,9 @@ import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
 import { initializeDatabase, kitchenActions, loadKitchen, type KitchenDatabase } from '../src/data/repository.ts';
 import { recipeCollection } from '../src/domain/recipe-collection.ts';
+import { initializeDemoKitchen } from '../src/data/demo-kitchen.ts';
+import { missingIngredients } from '../src/domain/inventory.ts';
+import { recipesForMeal } from '../src/domain/meals.ts';
 
 function open(path: string) {
   const native = new DatabaseSync(path);
@@ -253,5 +256,34 @@ test('imports each collection recipe once and preserves edits when it is importe
     assert.equal((await loadKitchen(db)).recipes.length, 2);
   } finally {
     close();
+  }
+});
+
+test('opens a populated example kitchen independently from personal records', async () => {
+  const example = open(':memory:');
+  const personal = open(':memory:');
+  try {
+    await initializeDatabase(personal.db);
+    await kitchenActions(personal.db).addStock({ name: '菠菜', quantity: 120, unit: '克' });
+    const day = '2026-11-10';
+    await initializeDemoKitchen(example.db, day);
+    const demo = await loadKitchen(example.db);
+    assert.ok(demo.recipes.some(({ title, favorite }) => title === '阳春面' && favorite));
+    assert.equal(demo.meals.length, 3);
+    assert.ok(demo.shopping.some(({ checked }) => checked));
+    assert.ok(demo.shopping.some(({ checked }) => !checked));
+    const planned = demo.meals[0];
+    const dishes = recipesForMeal(planned, demo.recipes);
+    const shortages = missingIngredients(dishes.flatMap(({ ingredients }) => ingredients), demo.stock);
+    assert.equal(shortages.find(({ name }) => name === '黄牛肉')?.quantity, 150);
+    assert.ok(demo.shoppingChecks.some(({ mealId }) => mealId === planned.id));
+    assert.equal(new Set(demo.nutrition.map((entry) => entry.day)).size, 3);
+    assert.ok(demo.nutrition.some((entry) => entry.day === day && entry.name === '番茄炒蛋'));
+    await kitchenActions(example.db).addStock({ name: '酸奶', quantity: 1, unit: '盒' });
+    assert.deepEqual((await loadKitchen(personal.db)).stock.map(({ name }) => name), ['菠菜']);
+    assert.deepEqual((await loadKitchen(personal.db)).nutrition, []);
+  } finally {
+    example.close();
+    personal.close();
   }
 });

@@ -11,6 +11,7 @@ import RecipeForm from '../../src/app/recipes/form';
 import CollectionRecipeScreen from '../../src/app/recipes/collection/[key]';
 import MealForm from '../../src/app/meals/form';
 import NutritionForm from '../../src/app/nutrition/form';
+import { LanguageProvider } from '../../src/data/language';
 import { useKitchen } from '../../src/data/kitchen';
 import type { KitchenActions, KitchenData } from '../../src/data/repository';
 
@@ -60,16 +61,29 @@ test.each([
   expect(screen.getByText(expected)).toBeTruthy();
 });
 
-test('turns to the next recipe and opens its preview from the cookbook', async () => {
+test('shows the whole gallery and filters the American collection', async () => {
   const screen = await render(<RecipesScreen />);
-  await fireEvent.press(screen.getByRole('button', { name: '下一道菜' }));
-  expect(screen.getByLabelText('第 2 道，共 4 道')).toBeTruthy();
+  expect(screen.getByText('30 道菜')).toBeTruthy();
+  expect(screen.getByRole('button', { name: '查看奶酪通心粉' })).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: '查看葱油拌面' }));
   expect(router.push).toHaveBeenCalledWith({
     pathname: '/recipes/collection/[key]', params: { key: 'scallion-noodles' },
   });
+  await fireEvent.press(screen.getByRole('button', { name: '美国日常' }));
+  expect(screen.getByText('11 道菜')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: '查看葱油拌面' })).toBeNull();
   await fireEvent.press(screen.getByRole('tab', { name: '我的菜谱' }));
   expect(screen.getByText('还没有菜谱')).toBeTruthy();
+});
+
+test('switches to English and discovers a recipe by its English name', async () => {
+  const screen = await render(<LanguageProvider><RecipesScreen /></LanguageProvider>);
+  await fireEvent.press(screen.getByRole('button', { name: 'English' }));
+  expect(screen.getByRole('tab', { name: 'Discover' })).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: 'Search recipes' }));
+  await fireEvent.changeText(screen.getByLabelText('Search recipes'), 'mac and cheese');
+  expect(screen.getByRole('button', { name: 'View Stovetop Mac and Cheese' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'View Tomato and Eggs' })).toBeNull();
 });
 
 test('adds a suggested recipe to the local library only after the save action', async () => {
@@ -81,6 +95,15 @@ test('adds a suggested recipe to the local library only after the save action', 
     title: '番茄炒蛋', pending: false,
   }), 'tomato-eggs');
   expect(router.replace).toHaveBeenCalledWith({ pathname: '/recipes/[id]', params: { id: '2' } });
+});
+
+test('opens and closes the uncropped recipe photo', async () => {
+  jest.mocked(useLocalSearchParams).mockReturnValue({ key: 'red-braised-pork' });
+  const screen = await render(<CollectionRecipeScreen />);
+  await fireEvent.press(screen.getByRole('button', { name: '放大菜谱图片' }));
+  expect(screen.getByLabelText('红烧肉完整图片').props.resizeMode).toBe('contain');
+  await fireEvent.press(screen.getByRole('button', { name: '关闭图片预览' }));
+  expect(screen.queryByLabelText('红烧肉完整图片')).toBeNull();
 });
 
 test('keeps the preparation checklist while moving through cooking steps', async () => {

@@ -1,8 +1,11 @@
+import { englishFood } from '../../domain/recipe-translations';
+import { useKitchenMode } from '../../data/kitchen-mode';
+import { useLanguage } from '../../data/language';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Action, Badge, Body, Card, Chip, Empty, Field, Heading, Page, Row, confirmDelete, palette, ui, useTask } from '../../components/ui';
+import { Action, Badge, Body, Card, Chip, Empty, Field, Heading, Page, Row, useConfirmDelete, palette, ui, useTask } from '../../components/ui';
 import { useKitchen } from '../../data/kitchen';
 import { formatAmount, missingIngredients } from '../../domain/inventory';
 import { recipesForMeal } from '../../domain/meals';
@@ -10,6 +13,9 @@ import { readIngredient, type Ingredient } from '../../domain/recipes';
 import { adjustedShortages, isShortageChecked, shortageAmountKey, type ShoppingItem, type ShoppingShortage } from '../../domain/shopping';
 
 export default function ShoppingScreen() {
+  const { t } = useLanguage();
+  const confirmDelete = useConfirmDelete();
+  const demo = useKitchenMode()?.demo;
   const router = useRouter();
   const { mealId } = useLocalSearchParams<{ mealId?: string }>();
   const { data: { meals, recipes, stock, shopping, shoppingChecks, shoppingAdjustments }, write } = useKitchen();
@@ -30,27 +36,27 @@ export default function ShoppingScreen() {
   }
 
   return (
-    <Page title="购物清单" subtitle="先看这顿饭还缺什么。" headerAction={
-      <Action label={editor === 'new' ? '收起' : '手动添加'} icon={editor === 'new' ? 'remove' : 'add'}
+    <Page title={t("购物清单")} subtitle={t("先看这顿饭还缺什么。")} headerAction={
+      <Action label={editor === 'new' ? t("收起") : t("手动添加")} icon={editor === 'new' ? 'remove' : 'add'}
         onPress={() => setEditor(editor === 'new' ? null : 'new')} />
     }>
       {editor === 'new' && <Card><ShoppingEditor onSave={saveItem} /></Card>}
       <Card>
-        <Heading>菜单缺料</Heading>
+        <Heading>{t("菜单缺料")}</Heading>
         {meals.length ? (
           <Row wrap>
-            {meals.map((item) => <Chip key={item.id} label={`${item.name} · ${item.day}`} selected={item.id === meal?.id}
+            {meals.map((item) => <Chip key={item.id} label={`${demo ? t(item.name) : item.name} · ${item.day}`} selected={item.id === meal?.id}
               onPress={() => router.setParams({ mealId: String(item.id) })} />)}
           </Row>
         ) : (
-          <Body>保存一餐菜单后，这里会扣除冰箱库存并列出缺少的食材。</Body>
+          <Body>{t("保存一餐菜单后，这里会扣除冰箱库存并列出缺少的食材。")}</Body>
         )}
         {!!meal && (
           <>
-            {dishes.some((dish) => dish.pending) && <Body>菜单包含待整理菜谱，清单只计算已录入的食材。</Body>}
-            {!required.length && <Body>这顿饭还没有已录入的食材。</Body>}
-            {!!required.length && !calculated.length && <Badge>已录入的食材齐全</Badge>}
-            {!!calculated.length && !missing.length && <Body>已移除本餐全部缺料项目。</Body>}
+            {dishes.some((dish) => dish.pending) && <Body>{t("菜单包含待整理菜谱，清单只计算已录入的食材。")}</Body>}
+            {!required.length && <Body>{t("这顿饭还没有已录入的食材。")}</Body>}
+            {!!required.length && !calculated.length && <Badge>{t("已录入的食材齐全")}</Badge>}
+            {!!calculated.length && !missing.length && <Body>{t("已移除本餐全部缺料项目。")}</Body>}
             {missing.map((item) => {
               const checked = isShortageChecked(shoppingChecks, meal.id, item);
               return (
@@ -70,29 +76,29 @@ export default function ShoppingScreen() {
                   }, !checked)))} />
               );
             })}
-            {hasAdjustments && <Action label="恢复自动清单" variant="quiet" disabled={busy} onPress={() => {
-              confirmDelete('恢复自动清单？', '将清除本餐的手动调整、移除记录和勾选状态。', () => {
+            {hasAdjustments && <Action label={t("恢复自动清单")} variant="quiet" disabled={busy} onPress={() => {
+              confirmDelete(t("恢复自动清单？"), t("将清除本餐的手动调整、移除记录和勾选状态。"), () => {
                 void run(() => write((actions) => actions.resetShoppingAdjustments(meal.id)));
-              }, '恢复');
+              }, t("恢复"));
             }} />}
           </>
         )}
       </Card>
       <Row>
-        <Heading>手动清单</Heading>
-        <Body>{checkedCount}/{shopping.length} 已勾选</Body>
+        <Heading>{t("手动清单")}</Heading>
+        <Body>{checkedCount}/{shopping.length} {t("已勾选")}</Body>
       </Row>
-      {!shopping.length && <Empty icon="basket-outline" title="没有手动项目" description="可手动添加临时想买的食材或厨房用品。" />}
+      {!shopping.length && <Empty icon="basket-outline" title={t("没有手动项目")} description={t("可手动添加临时想买的食材或厨房用品。")} />}
       {shopping.map((item) => (
         <Card key={item.id}>
           <CheckItem item={item} checked={item.checked} disabled={busy}
             onPress={() => void run(() => write((actions) => actions.setShoppingItemChecked(item.id, !item.checked)))} />
           <Row wrap>
-            <Action label={editor !== 'new' && editor?.id === item.id ? '取消编辑' : '编辑'}
+            <Action label={editor !== 'new' && editor?.id === item.id ? t("取消编辑") : t("编辑")}
               variant="quiet" disabled={busy}
               onPress={() => setEditor(editor !== 'new' && editor?.id === item.id ? null : item)} />
-            <Action label="删除" variant="danger" disabled={busy} onPress={() => confirmDelete(
-              '删除购物项目？', `将删除「${item.name}」。`,
+            <Action label={t("删除")} variant="danger" disabled={busy} onPress={() => confirmDelete(
+              t("删除购物项目？"), t("将删除「{0}」。", item.name),
               () => void run(async () => {
                 await write((actions) => actions.deleteShoppingItem(item.id));
                 if (editor !== 'new' && editor?.id === item.id) setEditor(null);
@@ -115,15 +121,17 @@ function AutomaticItem({ item, checked, disabled, onPress, onSave, onDelete }: {
   onSave: (input: Ingredient) => Promise<void>;
   onDelete: () => void;
 }) {
+  const { t } = useLanguage();
+  const confirmDelete = useConfirmDelete();
   const [editing, setEditing] = useState(false);
   return (
     <View style={ui.stack}>
       <CheckItem item={item} checked={checked} disabled={disabled} onPress={onPress}
-        note={item.adjusted ? '已手动调整' : item.needsReview ? '库存量或单位待核对' : undefined} />
+        note={item.adjusted ? t("已手动调整") : item.needsReview ? t("库存量或单位待核对") : undefined} />
       <Row wrap>
-        <Action label={editing ? '取消编辑' : '编辑'} variant="quiet" disabled={disabled} onPress={() => setEditing(!editing)} />
-        <Action label="移除" variant="danger" disabled={disabled}
-          onPress={() => confirmDelete('移除缺料项目？', `将从本餐购物清单移除「${item.name}」。`, onDelete, '移除')} />
+        <Action label={editing ? t("取消编辑") : t("编辑")} variant="quiet" disabled={disabled} onPress={() => setEditing(!editing)} />
+        <Action label={t("移除")} variant="danger" disabled={disabled}
+          onPress={() => confirmDelete(t("移除缺料项目？"), t("将从本餐购物清单移除「{0}」。", item.name), onDelete, t("移除"))} />
       </Row>
       {editing && <ShoppingEditor item={item} onSave={async (input) => {
         await onSave(input);
@@ -134,6 +142,7 @@ function AutomaticItem({ item, checked, disabled, onPress, onSave, onDelete }: {
 }
 
 function ShoppingEditor({ item, onSave }: { item?: Ingredient; onSave: (input: Ingredient) => Promise<void> }) {
+  const { t } = useLanguage();
   const { run, busy } = useTask();
   const [name, setName] = useState(item?.name ?? '');
   const [quantity, setQuantity] = useState(item?.quantity?.toString() ?? '');
@@ -141,17 +150,17 @@ function ShoppingEditor({ item, onSave }: { item?: Ingredient; onSave: (input: I
 
   return (
     <View style={ui.stack}>
-      <Heading>{item ? '编辑购物项目' : '添加购物项目'}</Heading>
-      <Field label="项目名称" placeholder="例如酸奶" value={name} onChangeText={setName} />
+      <Heading>{item ? t("编辑购物项目") : t("添加购物项目")}</Heading>
+      <Field label={t("项目名称")} placeholder={t("例如酸奶")} value={name} onChangeText={setName} />
       <Row>
         <View style={ui.grow}>
-          <Field label="数量（选填）" placeholder="例如 2" keyboardType="decimal-pad" value={quantity} onChangeText={setQuantity} />
+          <Field label={t("数量（选填）")} placeholder={t("例如 2")} keyboardType="decimal-pad" value={quantity} onChangeText={setQuantity} />
         </View>
         <View style={ui.grow}>
-          <Field label="单位" placeholder="例如 盒" value={unit} onChangeText={setUnit} />
+          <Field label={t("单位")} placeholder={t("例如 盒")} value={unit} onChangeText={setUnit} />
         </View>
       </Row>
-      <Action label="保存" disabled={busy} onPress={() => void run(() => onSave(readIngredient({ name, quantity, unit })))} />
+      <Action label={t("保存")} disabled={busy} onPress={() => void run(() => onSave(readIngredient({ name, quantity, unit })))} />
     </View>
   );
 }
@@ -159,16 +168,19 @@ function ShoppingEditor({ item, onSave }: { item?: Ingredient; onSave: (input: I
 function CheckItem({ item, checked, onPress, note, disabled }: {
   item: Ingredient; checked: boolean; onPress: () => void; note?: string; disabled: boolean;
 }) {
+  const { language } = useLanguage();
+  const english = language === 'en';
+  const name = english ? englishFood(item.name) : item.name;
   return (
-    <Pressable accessibilityRole="checkbox" accessibilityLabel={`${item.name}，${formatAmount(item)}${note ? `，${note}` : ''}`}
+    <Pressable accessibilityRole="checkbox" accessibilityLabel={`${name}，${formatAmount(item, english)}${note ? `，${note}` : ''}`}
       accessibilityState={{ checked, disabled }} disabled={disabled} onPress={onPress}
       style={({ pressed }) => [styles.check, pressed && styles.pressed]}>
       <Ionicons name={checked ? 'checkbox' : 'square-outline'} size={24} color={palette.accent} />
       <View style={ui.grow}>
-        <Text style={[ui.itemTitle, checked && styles.checkedText]}>{item.name}</Text>
+        <Text style={[ui.itemTitle, checked && styles.checkedText]}>{name}</Text>
         {note && <Body>{note}</Body>}
       </View>
-      <Body>{formatAmount(item)}</Body>
+      <Body>{formatAmount(item, english)}</Body>
     </Pressable>
   );
 }

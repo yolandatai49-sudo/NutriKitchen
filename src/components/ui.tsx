@@ -1,3 +1,4 @@
+import { useLanguage } from '../data/language';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps, ReactNode } from 'react';
 import { useRef, useState } from 'react';
@@ -6,6 +7,8 @@ import {
   Text, TextInput, View, type TextInputProps,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { DemoKitchenNotice } from './demo-kitchen-notice';
 
 export const palette = {
   background: '#F6F0E5',
@@ -37,6 +40,7 @@ export function Page({ title, subtitle, headerAction, children, detail = false }
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets>
         <View style={styles.content}>
+          <DemoKitchenNotice allowExit={!detail} />
           <View style={styles.pageHeader}>
             <View style={styles.flex}>
               <Text accessibilityRole="header" style={styles.title}>{title}</Text>
@@ -126,6 +130,7 @@ export function Empty({ icon, title, description }: { icon: IconName; title: str
 }
 
 export function useTask() {
+  const { t } = useLanguage();
   const lock = useRef(false);
   const [busy, setBusy] = useState(false);
   async function run(operation: () => Promise<unknown>) {
@@ -135,7 +140,10 @@ export function useTask() {
     try {
       await operation();
     } catch (error) {
-      Alert.alert('操作未完成', error instanceof Error ? error.message : '请重试。');
+      const title = t('操作未完成');
+      const message = t(error instanceof Error ? error.message : '请重试。');
+      if (Platform.OS === 'web') window.alert(title + '\n\n' + message);
+      else Alert.alert(title, message);
     } finally {
       lock.current = false;
       setBusy(false);
@@ -144,11 +152,18 @@ export function useTask() {
   return { busy, run };
 }
 
-export function confirmDelete(title: string, message: string, onDelete: () => void, label = '删除') {
-  Alert.alert(title, message, [
-    { text: '取消', style: 'cancel' },
-    { text: label, style: 'destructive', onPress: onDelete },
-  ]);
+export function useConfirmDelete() {
+  const { t } = useLanguage();
+  return (title: string, message: string, onDelete: () => void, label = t('删除')) => {
+    if (Platform.OS === 'web') {
+      if (window.confirm(title + '\n\n' + message)) onDelete();
+      return;
+    }
+    Alert.alert(title, message, [
+      { text: t('取消'), style: 'cancel' },
+      { text: label, style: 'destructive', onPress: onDelete },
+    ]);
+  };
 }
 
 export const ui = StyleSheet.create({

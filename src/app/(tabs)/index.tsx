@@ -1,30 +1,41 @@
+import { useLanguage } from '../../data/language';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
-import { useRef, useState, type ComponentRef } from 'react';
+import { useState } from 'react';
 import {
   Image, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput,
-  useWindowDimensions, View,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { DemoKitchenNotice } from '../../components/demo-kitchen-notice';
 import { recipeCover } from '../../components/recipe-covers';
-import { Action, Body, editorialFont, palette, ui, type IconName } from '../../components/ui';
+import { Action, Body, Chip, editorialFont, palette, ui, type IconName } from '../../components/ui';
 import { useKitchen } from '../../data/kitchen';
-import { recipeCollection, type CollectionRecipe } from '../../domain/recipe-collection';
+import { categoryEnglish, localizeCollection, presentSavedRecipe, recipeCollection, type CollectionRecipe } from '../../domain/recipe-collection';
 import { filterRecipes, matchesRecipeSearch, normalizeName } from '../../domain/recipes';
 
 export default function RecipesScreen() {
+  const { t, language, setLanguage } = useLanguage();
+  const english = language === 'en';
   const router = useRouter();
   const { data: { recipes } } = useKitchen();
   const [shelf, setShelf] = useState<'browse' | 'mine'>('browse');
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string | null>(null);
+  const [region, setRegion] = useState<'all' | 'chinese' | 'american'>('all');
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const categories = [...new Set(recipes.map((recipe) => recipe.category))].sort((a, b) => a.localeCompare(b, 'zh'));
   const activeCategory = category !== null && categories.includes(category) ? category : null;
-  const visible = filterRecipes(recipes, query, activeCategory, favoritesOnly);
   const terms = normalizeName(query).split(' ').filter(Boolean);
-  const suggestions = recipeCollection.filter(({ recipe }) => matchesRecipeSearch(recipe, terms));
+  const visible = filterRecipes(recipes, '', activeCategory, favoritesOnly)
+    .map((recipe) => ({ original: recipe, display: presentSavedRecipe(recipe, english) }))
+    .filter(({ original, display }) => matchesRecipeSearch(original, terms) || matchesRecipeSearch(display, terms))
+    .map(({ display }) => display);
+  const suggestions = recipeCollection
+    .filter((entry) => region === 'all' || (entry.region ?? 'chinese') === region)
+    .filter((entry) => matchesRecipeSearch(entry.recipe, terms) || matchesRecipeSearch(localizeCollection(entry, true).recipe, terms))
+    .map((entry) => localizeCollection(entry, english));
   const savedKeys = new Set(recipes.map((recipe) => recipe.collectionKey));
 
   function openSuggestion(item: CollectionRecipe) {
@@ -36,25 +47,34 @@ export default function RecipesScreen() {
       <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets>
         <View style={styles.book}>
+          <View style={[styles.inset, styles.utility]}>
+            {setLanguage && (
+              <View accessibilityLabel={t('语言')} style={styles.language}>
+                <Chip label="中文" selected={!english} onPress={() => setLanguage('zh')} />
+                <Chip label="English" selected={english} onPress={() => setLanguage('en')} />
+              </View>
+            )}
+            <DemoKitchenNotice showEntry />
+          </View>
           <View style={[styles.inset, styles.masthead]}>
-            <Text accessibilityRole="header" style={styles.title}>今天吃什么</Text>
+            <Text accessibilityRole="header" style={styles.title}>{t("今天吃什么")}</Text>
             <View style={styles.tools}>
-              <IconButton label={searching ? '关闭搜索' : '搜索菜谱'} icon={searching ? 'close' : 'search-outline'}
+              <IconButton label={searching ? t("关闭搜索") : t("搜索菜谱")} icon={searching ? 'close' : 'search-outline'}
                 onPress={() => {
                   if (searching) { setQuery(''); Keyboard.dismiss(); }
                   setSearching(!searching);
                 }} />
-              <IconButton label="新增菜谱" icon="add" filled onPress={() => router.push('/recipes/form')} />
+              <IconButton label={t("新增菜谱")} icon="add" filled onPress={() => router.push('/recipes/form')} />
             </View>
           </View>
           <View style={[styles.inset, styles.tabs]}>
-            <TabLabel title="找灵感" selected={shelf === 'browse'} onPress={() => setShelf('browse')} />
-            <TabLabel title="我的菜谱" selected={shelf === 'mine'} onPress={() => setShelf('mine')} />
+            <TabLabel title={t("找灵感")} selected={shelf === 'browse'} onPress={() => setShelf('browse')} />
+            <TabLabel title={t("我的菜谱")} selected={shelf === 'mine'} onPress={() => setShelf('mine')} />
           </View>
           {searching && (
             <View style={[styles.inset, styles.search]}>
               <Ionicons name="search-outline" size={18} color={palette.muted} accessible={false} />
-              <TextInput accessibilityLabel="搜索菜谱" placeholder="菜名、分类或食材" placeholderTextColor={palette.muted}
+              <TextInput accessibilityLabel={t("搜索菜谱")} placeholder={t("菜名、分类或食材")} placeholderTextColor={palette.muted}
                 value={query} onChangeText={setQuery} returnKeyType="search" clearButtonMode="while-editing"
                 autoFocus style={styles.searchField} />
             </View>
@@ -63,41 +83,46 @@ export default function RecipesScreen() {
           {shelf === 'browse' ? (
             <>
               <View style={[styles.inset, styles.sectionHeader]}>
-                <Text accessibilityRole="header" style={styles.sectionTitle}>家常菜谱</Text>
-                {!terms.length && <Text style={styles.caption}>左右翻看</Text>}
+                <Text accessibilityRole="header" style={styles.sectionTitle}>{t("家常菜谱")}</Text>
+                <Text style={styles.caption}>{suggestions.length} {t("道菜")}</Text>
+              </View>
+              <View style={[styles.inset, styles.regions]}>
+                <Chip label={t('全部')} selected={region === 'all'} onPress={() => setRegion('all')} />
+                <Chip label={t('中式家常')} selected={region === 'chinese'} onPress={() => setRegion('chinese')} />
+                <Chip label={t('美国日常')} selected={region === 'american'} onPress={() => setRegion('american')} />
               </View>
               {suggestions.length > 0 ? (
-                <RecipeFlipbook key={terms.join(' ')} items={suggestions} savedKeys={savedKeys} onOpen={openSuggestion} />
+                <RecipeGallery items={suggestions} savedKeys={savedKeys} onOpen={openSuggestion} />
               ) : (
-                <View style={styles.empty}><Body>没有找到符合条件的菜谱。</Body></View>
+                <View style={styles.empty}><Body>{t("没有找到符合条件的菜谱。")}</Body></View>
               )}
             </>
           ) : (
             <View style={styles.inset}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.filters} keyboardShouldPersistTaps="handled">
-                <TabLabel title="全部" selected={activeCategory === null} onPress={() => setCategory(null)} />
+                <TabLabel title={t("全部")} selected={activeCategory === null} onPress={() => setCategory(null)} />
                 {categories.map((item) => (
-                  <TabLabel key={item} title={item} selected={activeCategory === item} onPress={() => setCategory(item)} />
+                  <TabLabel key={item} title={english ? categoryEnglish[item] ?? item : item} selected={activeCategory === item} onPress={() => setCategory(item)} />
                 ))}
               </ScrollView>
               <View style={styles.indexHeader}>
-                <Text style={styles.caption}>{visible.length} 道菜</Text>
+                <Text style={styles.caption}>{visible.length} {t("道菜")}</Text>
                 <Pressable accessibilityRole="button" accessibilityState={{ selected: favoritesOnly }}
-                  accessibilityLabel="只看收藏" onPress={() => setFavoritesOnly(!favoritesOnly)} style={styles.favoriteFilter}>
+                  accessibilityLabel={t("只看收藏")} onPress={() => setFavoritesOnly(!favoritesOnly)} style={styles.favoriteFilter}>
                   <Ionicons name={favoritesOnly ? 'heart' : 'heart-outline'} size={17} color={palette.accent} accessible={false} />
-                  <Text style={styles.caption}>只看收藏</Text>
+                  <Text style={styles.caption}>{t("只看收藏")}</Text>
                 </Pressable>
               </View>
               {visible.length === 0 && (
                 <View style={styles.libraryEmpty}>
                   <Text accessibilityRole="header" style={styles.sectionTitle}>
-                    {recipes.length ? '没有符合条件的菜谱' : '还没有菜谱'}
+                    {recipes.length ? t("没有符合条件的菜谱") : t("还没有菜谱")}
                   </Text>
-                  <Body>{recipes.length ? '试试其他关键词或分类。' : '收录一道家常菜，或写下自己的做法。'}</Body>
+                  <Body>{recipes.length ? t("试试其他关键词或分类。") : t("收录一道家常菜，或写下自己的做法。")}</Body>
                   {!recipes.length && <View style={styles.tools}>
-                    <Action label="找灵感" variant="quiet" onPress={() => setShelf('browse')} />
-                    <Action label="新增菜谱" onPress={() => router.push('/recipes/form')} />
+                    <Action label={t("找灵感")} variant="quiet" onPress={() => setShelf('browse')} />
+                    <Action label={t("新增菜谱")} onPress={() => router.push('/recipes/form')} />
                   </View>}
                 </View>
               )}
@@ -105,13 +130,13 @@ export default function RecipesScreen() {
                 const cover = recipeCover(recipe.collectionKey);
                 return (
                   <Pressable key={recipe.id} accessibilityRole="button"
-                    accessibilityLabel={[recipe.title, recipe.category, recipe.pending ? '待整理' : '', recipe.favorite ? '已收藏' : ''].filter(Boolean).join('，')}
+                    accessibilityLabel={[recipe.title, recipe.category, recipe.pending ? t("待整理") : '', recipe.favorite ? t("已收藏") : ''].filter(Boolean).join('，')}
                     onPress={() => router.push({ pathname: '/recipes/[id]', params: { id: String(recipe.id) } })}
                     style={({ pressed }) => [styles.indexRow, pressed && styles.pressed]}>
-                    {cover !== undefined && <Image source={cover} style={styles.thumb} accessible={false} />}
+                    {cover !== undefined && <Image source={cover} resizeMode="contain" style={styles.thumb} accessible={false} />}
                     <View style={ui.grow}>
                       <Text style={styles.indexTitle}>{recipe.title}</Text>
-                      <Text style={styles.caption}>{recipe.category}{recipe.pending ? ' · 待整理' : ''}</Text>
+                      <Text style={styles.caption}>{recipe.category}{recipe.pending ? ' ' + t('· 待整理') : ''}</Text>
                     </View>
                     {recipe.favorite && <Ionicons name="heart" size={17} color={palette.accent} accessible={false} />}
                     <Ionicons name="chevron-forward" size={17} color={palette.muted} accessible={false} />
@@ -126,59 +151,27 @@ export default function RecipesScreen() {
   );
 }
 
-function RecipeFlipbook({ items, savedKeys, onOpen }: {
+function RecipeGallery({ items, savedKeys, onOpen }: {
   items: readonly CollectionRecipe[];
   savedKeys: ReadonlySet<string | undefined>;
   onOpen: (item: CollectionRecipe) => void;
 }) {
-  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
-  const [page, setPage] = useState(0);
-  const { width } = useWindowDimensions();
-  const bookWidth = Math.min(width, 680);
-  const coverWidth = Math.min(bookWidth - 62, 438);
-  const interval = coverWidth + 14;
-
-  function turnPage(index: number) {
-    setPage(index);
-    scroll.current?.scrollTo({ x: index * interval, animated: true });
-  }
-
+  const { t } = useLanguage();
   return (
-    <>
-      <ScrollView ref={scroll} horizontal showsHorizontalScrollIndicator={false} decelerationRate="fast"
-        snapToInterval={interval} disableIntervalMomentum keyboardShouldPersistTaps="handled"
-        onMomentumScrollEnd={(event) => {
-          const index = Math.round(event.nativeEvent.contentOffset.x / interval);
-          setPage(Math.max(0, Math.min(index, items.length - 1)));
-        }}
-        contentContainerStyle={[styles.covers, { paddingRight: bookWidth - coverWidth - 20 }]}>
-        {items.map((item) => (
-          <Pressable key={item.key} accessibilityRole="button" accessibilityLabel={`查看${item.recipe.title}`}
-            onPress={() => onOpen(item)}
-            style={({ pressed }) => [styles.cover, { width: coverWidth }, pressed && styles.pressed]}>
-            <Image source={recipeCover(item.key)} style={styles.photo} resizeMode="cover" accessible={false} />
-            <View style={styles.coverCaption}>
-              <View style={ui.grow}>
-                <Text style={styles.coverTitle}>{item.recipe.title}</Text>
-                <Text style={styles.caption}>
-                  {item.recipe.category} · 约 {item.minutes} 分钟{savedKeys.has(item.key) ? ' · 已收录' : ''}
-                </Text>
-              </View>
-              <Ionicons name="arrow-forward" size={22} color={palette.accent} accessible={false} />
-            </View>
-          </Pressable>
-        ))}
-      </ScrollView>
-      {items.length > 1 && (
-        <View style={[styles.inset, styles.pager]}>
-          <IconButton label="上一道菜" icon="arrow-back" disabled={page === 0} onPress={() => turnPage(page - 1)} />
-          <Text style={styles.pageNumber} accessibilityLabel={`第 ${page + 1} 道，共 ${items.length} 道`}>
-            {String(page + 1).padStart(2, '0')} / {String(items.length).padStart(2, '0')}
-          </Text>
-          <IconButton label="下一道菜" icon="arrow-forward" disabled={page === items.length - 1} onPress={() => turnPage(page + 1)} />
-        </View>
-      )}
-    </>
+    <View style={[styles.inset, styles.gallery]}>
+      {items.map((item) => (
+        <Pressable key={item.key} accessibilityRole="button" accessibilityLabel={t("查看{0}", item.recipe.title)}
+          onPress={() => onOpen(item)} style={({ pressed }) => [styles.cover, pressed && styles.pressed]}>
+          <Image source={recipeCover(item.key)} style={styles.photo} resizeMode="contain" accessible={false} />
+          <View style={styles.coverCaption}>
+            <Text style={styles.coverTitle}>{item.recipe.title}</Text>
+            <Text style={styles.caption}>
+              {item.recipe.category} · {item.minutes} {t("分钟")}{savedKeys.has(item.key) ? ' ' + t('· 已收录') : ''}
+            </Text>
+          </View>
+        </Pressable>
+      ))}
+    </View>
   );
 }
 
@@ -208,6 +201,9 @@ const styles = StyleSheet.create({
   page: { paddingBottom: 22 },
   book: { width: '100%', maxWidth: 680, alignSelf: 'center' },
   inset: { marginHorizontal: 20 },
+  utility: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
+  language: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  regions: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 14 },
   masthead: { paddingTop: 15, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   title: { flexShrink: 1, color: palette.ink, fontFamily: editorialFont, fontWeight: '700', fontSize: 36, letterSpacing: -1.1 },
   tools: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -224,13 +220,11 @@ const styles = StyleSheet.create({
   caption: { color: palette.muted, fontSize: 13, lineHeight: 20 },
   search: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 8, marginTop: 12, borderWidth: rule, borderColor: palette.line, backgroundColor: palette.surface },
   searchField: { flex: 1, minHeight: 44, color: palette.ink, fontSize: 16 },
-  covers: { gap: 14, paddingLeft: 20 },
-  cover: { backgroundColor: palette.surface, borderWidth: rule, borderColor: palette.line },
-  photo: { width: '100%', aspectRatio: 1.16, backgroundColor: palette.soft },
-  coverCaption: { paddingHorizontal: 15, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  coverTitle: { color: palette.ink, fontFamily: editorialFont, fontSize: 28, fontWeight: '700', marginBottom: 4 },
-  pager: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 },
-  pageNumber: { fontFamily: 'Georgia', color: palette.accent, fontSize: 16, fontVariant: ['tabular-nums'] },
+  gallery: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 16 },
+  cover: { width: '48.5%', overflow: 'hidden', borderRadius: 14, backgroundColor: palette.surface, borderWidth: rule, borderColor: palette.line },
+  photo: { width: '100%', aspectRatio: 4 / 5, backgroundColor: palette.soft },
+  coverCaption: { paddingHorizontal: 10, paddingVertical: 10 },
+  coverTitle: { color: palette.ink, fontFamily: editorialFont, fontSize: 19, fontWeight: '700', marginBottom: 4 },
   filters: { gap: 18, alignItems: 'center' },
   indexHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: rule, borderColor: palette.line },
   favoriteFilter: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6 },

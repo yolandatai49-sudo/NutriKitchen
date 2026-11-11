@@ -74,8 +74,10 @@ function escapeFoodName(name: string): string {
   return `"${safe.replace(/"/g, '""')}"`;
 }
 
-export function nutritionCsv(entries: readonly NutritionEntry[]): string {
-  const header = '日期,食物,重量(克),热量(千卡),蛋白质(克),碳水(克),脂肪(克),每100克热量(千卡),每100克蛋白质(克),每100克碳水(克),每100克脂肪(克)';
+export function nutritionCsv(entries: readonly NutritionEntry[], english = false): string {
+  const header = english
+    ? 'Date,Food,Weight (g),Calories (kcal),Protein (g),Carbs (g),Fat (g),Calories per 100 g (kcal),Protein per 100 g (g),Carbs per 100 g (g),Fat per 100 g (g)'
+    : '日期,食物,重量(克),热量(千卡),蛋白质(克),碳水(克),脂肪(克),每100克热量(千卡),每100克蛋白质(克),每100克碳水(克),每100克脂肪(克)';
   const rows = [...entries].sort((a, b) => a.day.localeCompare(b.day) || a.id - b.id).map((entry) => {
     const totals = nutritionForWeight(entry);
     const numbers = [

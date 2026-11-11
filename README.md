@@ -1,12 +1,14 @@
 # NutriKitchen · 今天吃什么
 
-个人厨房与营养管理 iOS App。使用 React Native 原生组件、Expo、TypeScript、Expo Router 和设备内 SQLite。
+个人厨房与营养管理 App。使用 React Native、Expo、TypeScript、Expo Router 和本地 SQLite，支持原生 iPhone 与浏览器。
 
 项目直接位于 NutriKitchen 工作区根目录，从空目录独立创建。
 
 ## 已实现
 
-- 「找灵感」可以左右翻看四道家常菜的图文菜谱，再按需收入「我的菜谱」。
+- 「找灵感」收录 30 道图文菜谱（19 道中式家常菜，11 道美国日常菜）。双列浏览，详情可全屏看图。
+- 首页切换中文或 English。界面与内置菜谱支持两种语言，自己录入的内容照原样保存。
+- 「体验示例厨房」预置收藏、餐单、库存、购物清单和三天的示例营养数据。示例修改与真实记录分开，退出后重置。
 - 菜谱支持新增、编辑、删除、分类、搜索和收藏，详情提供备料勾选与逐步烹饪。
 - 保存小红书链接或分享文字。链接先保存为「待整理」，可手动补全菜名、食材与步骤。
 - 选择多道菜，保存带日期的私人菜单，支持修改与删除。
@@ -56,9 +58,17 @@ npx expo login --browser
 
 TestFlight 与 App Store 发布使用 Apple Developer Program，官方标准费用为每年 99 美元，地区价格以实际页面为准。[Apple 会员说明](https://developer.apple.com/programs/enroll/)
 
+## 网页版
+
+执行 `npm run web`，打开 [http://localhost:8082](http://localhost:8082)。网页使用浏览器里的 SQLite，不要求登录。浏览器数据与 iPhone 数据各自保存；不同域名或浏览器之间也不会自动同步。
+
+`npm run build:web` 生成可发布的 `dist/`。正式托管使用 HTTPS，将页面路由回退到 `index.html`，并设置 `Cross-Origin-Opener-Policy: same-origin` 和 `Cross-Origin-Embedder-Policy: require-corp`，供 SQLite WebAssembly 运行。Expo Hosting 支持这些响应头，项目已经配置。[Expo SQLite 网页配置](https://docs.expo.dev/versions/latest/sdk/sqlite/#web-setup) · [Expo Hosting 发布说明](https://docs.expo.dev/eas/hosting/get-started/)
+
+旧站 `what-to-cook` 的记录保存在原浏览器的 IndexedDB。换站前，在旧站的「我的厨房 → 导出」备份 JSON。当前 NutriKitchen 不会自动导入旧站备份。
+
 ## 最短功能验收
 
-在「找灵感」左右翻看家常菜，点进一道菜，试用备料勾选和「开始做菜」。点击「收入我的菜谱」后，可以在「我的菜谱」和菜单选菜页找到它。
+在「找灵感」向下浏览照片，点进一道菜，试用全屏看图、备料勾选和「开始做菜」。点击「收入我的菜谱」后，可以在「我的菜谱」和菜单选菜页找到它。
 
 1. 添加「番茄汤」，食材填番茄 300 克，添加一个步骤并保存。
 2. 收藏该菜谱，搜索「番茄」，进入详情编辑后再次保存。
@@ -80,7 +90,7 @@ npm run check:deps
 npm run doctor
 ```
 
-- npm run check 依次执行 TypeScript、Lint、19 项业务与 SQLite 测试，以及 16 项原生页面组件测试。
+- npm run check 依次执行 TypeScript、Lint、23 项业务与 SQLite 测试，以及 18 项原生页面组件测试。
 - npm run check:deps 检查 Expo SDK 依赖版本。
 - npm run doctor 执行 Expo 官方项目诊断。
 - iOS 生产 JavaScript / Hermes 包可通过下列命令构建。

@@ -1,3 +1,4 @@
+import { useLanguage } from '../../data/language';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
@@ -9,17 +10,19 @@ import { buildNutritionEntry, type NutritionEntry } from '../../domain/nutrition
 import { normalizeName, readDecimal } from '../../domain/recipes';
 
 export default function NutritionFormRoute() {
+  const { t } = useLanguage();
   const { id, day } = useLocalSearchParams<{ id?: string; day?: string }>();
   const { data } = useKitchen();
   const entry = id ? data.nutrition.find((item) => item.id === Number(id)) : undefined;
 
   if (id && !entry) {
-    return <Page title="编辑记录" detail><Empty icon="nutrition-outline" title="找不到这条记录" description="返回营养记录查看其他食物。" /></Page>;
+    return <Page title={t("编辑记录")} detail><Empty icon="nutrition-outline" title={t("找不到这条记录")} description={t("返回营养记录查看其他食物。")} /></Page>;
   }
   return <NutritionForm key={id ?? 'new'} entry={entry} initialDay={dayOrToday(day)} />;
 }
 
 function NutritionForm({ entry, initialDay }: { entry?: NutritionEntry; initialDay: string }) {
+  const { t } = useLanguage();
   const router = useRouter();
   const { data, write } = useKitchen();
   const { run, busy } = useTask();
@@ -47,11 +50,11 @@ function NutritionForm({ entry, initialDay }: { entry?: NutritionEntry; initialD
   }
 
   return (
-    <Page title={entry ? '编辑记录' : '记录食物'} detail>
+    <Page title={entry ? t("编辑记录") : t("记录食物")} detail>
       {!entry && !!recent.size && (
         <Card>
-          <Heading>最近记录过</Heading>
-          <Body>点选食物可沿用每 100 克的数据。</Body>
+          <Heading>{t("最近记录过")}</Heading>
+          <Body>{t("点选食物可沿用每 100 克的数据。")}</Body>
           <Row wrap>
             {[...recent.values()].map((item) => <Chip key={item.id} label={item.name} selected={name === item.name}
               onPress={() => { setName(item.name); setEnergyUnit('kcal'); setPer100(formValues(item)); }} />)}
@@ -59,33 +62,33 @@ function NutritionForm({ entry, initialDay }: { entry?: NutritionEntry; initialD
         </Card>
       )}
       <Card>
-        <DateField label="记录日期" day={day} onChange={setDay} />
-        <Field label="食物名称" placeholder="例如原味酸奶" value={name} onChangeText={setName} />
-        <Field label="实际食用重量（克）" placeholder="例如 150" keyboardType="decimal-pad" value={grams} onChangeText={setGrams} />
+        <DateField label={t("记录日期")} day={day} onChange={setDay} />
+        <Field label={t("食物名称")} placeholder={t("例如原味酸奶")} value={name} onChangeText={setName} />
+        <Field label={t("实际食用重量（克）")} placeholder={t("例如 150")} keyboardType="decimal-pad" value={grams} onChangeText={setGrams} />
       </Card>
       <Card>
-        <Heading>每 100 克的营养成分</Heading>
-        <Body>按包装或你使用的数据来源填写。含量为零时请输入 0。</Body>
+        <Heading>{t("每 100 克的营养成分")}</Heading>
+        <Body>{t("按包装或你使用的数据来源填写。含量为零时请输入 0。")}</Body>
         <Row wrap>
-          <Chip label="热量用千卡" selected={energyUnit === 'kcal'} onPress={() => changeEnergyUnit('kcal')} />
-          <Chip label="热量用千焦" selected={energyUnit === 'kJ'} onPress={() => changeEnergyUnit('kJ')} />
+          <Chip label={t("热量用千卡")} selected={energyUnit === 'kcal'} onPress={() => changeEnergyUnit('kcal')} />
+          <Chip label={t("热量用千焦")} selected={energyUnit === 'kJ'} onPress={() => changeEnergyUnit('kJ')} />
         </Row>
-        <Field label={energyUnit === 'kcal' ? '热量（千卡）' : '热量（千焦）'} keyboardType="decimal-pad" value={per100.kcal}
+        <Field label={energyUnit === 'kcal' ? t("热量（千卡）") : t("热量（千焦）")} keyboardType="decimal-pad" value={per100.kcal}
           onChangeText={(value) => setPer100((values) => ({ ...values, kcal: value }))} />
         <Row>
           <View style={ui.grow}>
-            <Field label="蛋白质（克）" keyboardType="decimal-pad" value={per100.protein}
+            <Field label={t("蛋白质（克）")} keyboardType="decimal-pad" value={per100.protein}
               onChangeText={(value) => setPer100((values) => ({ ...values, protein: value }))} />
           </View>
           <View style={ui.grow}>
-            <Field label="碳水（克）" keyboardType="decimal-pad" value={per100.carbs}
+            <Field label={t("碳水（克）")} keyboardType="decimal-pad" value={per100.carbs}
               onChangeText={(value) => setPer100((values) => ({ ...values, carbs: value }))} />
           </View>
         </Row>
-        <Field label="脂肪（克）" keyboardType="decimal-pad" value={per100.fat}
+        <Field label={t("脂肪（克）")} keyboardType="decimal-pad" value={per100.fat}
           onChangeText={(value) => setPer100((values) => ({ ...values, fat: value }))} />
       </Card>
-      <Action label="保存营养记录" disabled={busy} onPress={() => void run(async () => {
+      <Action label={t("保存营养记录")} disabled={busy} onPress={() => void run(async () => {
         const input = buildNutritionEntry({ day, name, grams, per100, energyUnit });
         await write((actions) => actions.saveNutritionEntry(input, entry?.id));
         router.back();

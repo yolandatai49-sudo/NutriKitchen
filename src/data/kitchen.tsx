@@ -1,3 +1,4 @@
+import { useLanguage } from './language';
 import { useSQLiteContext } from 'expo-sqlite';
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator } from 'react-native';
@@ -12,6 +13,7 @@ type KitchenContextValue = {
 const KitchenContext = createContext<KitchenContextValue | null>(null);
 
 export function KitchenProvider({ children }: { children: ReactNode }) {
+  const { t } = useLanguage();
   const db = useSQLiteContext();
   const actions = useMemo(() => kitchenActions(db), [db]);
   const [data, setData] = useState<KitchenData | null>(null);
@@ -45,13 +47,13 @@ export function KitchenProvider({ children }: { children: ReactNode }) {
 
   if (!data) {
     return (
-      <Page title="今天吃什么">
+      <Page title={t("今天吃什么")}>
         {failed ? (
           <>
-            <Empty icon="warning-outline" title="无法读取本地数据" description="请重试读取数据库。" />
-            <Action label="重试" onPress={() => { setFailed(false); setAttempt((value) => value + 1); }} />
+            <Empty icon="warning-outline" title={t("无法读取本地数据")} description={t("请重试读取数据库。")} />
+            <Action label={t("重试")} onPress={() => { setFailed(false); setAttempt((value) => value + 1); }} />
           </>
-        ) : <ActivityIndicator color={palette.accent} accessibilityLabel="正在读取本地数据" />}
+        ) : <ActivityIndicator color={palette.accent} accessibilityLabel={t("正在读取本地数据")} />}
       </Page>
     );
   }

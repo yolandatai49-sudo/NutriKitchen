@@ -8,20 +8,33 @@
     "scheme": "nutrikitchen",
     "userInterfaceStyle": "light",
     "platforms": [
-      "ios"
+      "ios",
+      "web"
     ],
     "ios": {
       "bundleIdentifier": "com.nutrikitchen.app",
       "supportsTablet": true
     },
     "plugins": [
-      "expo-router",
+      [
+        "expo-router",
+        {
+          "headers": {
+            "Cross-Origin-Embedder-Policy": "require-corp",
+            "Cross-Origin-Opener-Policy": "same-origin"
+          }
+        }
+      ],
       "expo-sqlite",
       "@react-native-community/datetimepicker",
       "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/icon.png"
     }
   }
 }
