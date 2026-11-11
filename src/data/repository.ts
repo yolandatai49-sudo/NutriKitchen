@@ -1,4 +1,6 @@
 import type { Ingredient, Recipe, RecipeInput } from '../domain/recipes.ts';
+import type { MealInput, MealPlan } from '../domain/meals.ts';
+import type { StockItem } from '../domain/inventory.ts';
 
 type SqlValue = string | number | null;
 
@@ -9,7 +11,7 @@ export interface KitchenDatabase {
   getFirstAsync<T>(sql: string, ...params: SqlValue[]): Promise<T | null>;
 }
 
-const schema = `
+const migrations = [`
   CREATE TABLE recipes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
@@ -20,18 +22,46 @@ const schema = `
     pending INTEGER NOT NULL CHECK (pending IN (0, 1)),
     favorite INTEGER NOT NULL DEFAULT 0 CHECK (favorite IN (0, 1))
   );
-`;
+`, `
+  CREATE TABLE meals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    day TEXT NOT NULL
+  );
+  CREATE TABLE meal_recipes (
+    meal_id INTEGER NOT NULL REFERENCES meals(id) ON DELETE CASCADE,
+    recipe_id INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,
+    PRIMARY KEY (meal_id, recipe_id)
+  );
+  CREATE INDEX meal_recipes_recipe ON meal_recipes(recipe_id);
+`, `
+  CREATE TABLE stock (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    quantity REAL CHECK (quantity > 0),
+    unit TEXT NOT NULL
+  );
+`];
 
 export async function initializeDatabase(db: KitchenDatabase) {
   await db.execAsync('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
-  const version = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
-  if (version?.user_version === 1) return;
-  if (version?.user_version !== 0) throw new Error('这个数据库需要更新版本的 App。');
+  await transaction(db, async () => {
+    const version = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+    if (!version || version.user_version > migrations.length) throw new Error('这个数据库需要更新版本的 App。');
+    for (let index = version.user_version; index < migrations.length; index++) {
+      await db.execAsync(migrations[index]);
+    }
+    await db.execAsync(`PRAGMA user_version = ${migrations.length}`);
+  });
+}
 
+async function transaction<T>(db: KitchenDatabase, operation: () => Promise<T>): Promise<T> {
   await db.execAsync('BEGIN IMMEDIATE');
   try {
-    await db.execAsync(schema);
-    await db.execAsync('PRAGMA user_version = 1; COMMIT;');
+    const result = await operation();
+    await db.execAsync('COMMIT');
+    return result;
   } catch (error) {
     await db.execAsync('ROLLBACK');
     throw error;
@@ -61,7 +91,19 @@ export async function loadKitchen(db: KitchenDatabase) {
     pending: Boolean(row.pending),
     favorite: Boolean(row.favorite),
   }));
-  return { recipes };
+  const mealRows = await db.getAllAsync<Omit<MealPlan, 'recipeIds'>>('SELECT * FROM meals ORDER BY id DESC');
+  const selections = await db.getAllAsync<{ meal_id: number; recipe_id: number }>(
+    'SELECT meal_id, recipe_id FROM meal_recipes ORDER BY meal_id, position',
+  );
+  const recipeIdsByMeal = new Map<number, number[]>();
+  for (const { meal_id, recipe_id } of selections) {
+    const ids = recipeIdsByMeal.get(meal_id) ?? [];
+    ids.push(recipe_id);
+    recipeIdsByMeal.set(meal_id, ids);
+  }
+  const meals: MealPlan[] = mealRows.map((meal) => ({ ...meal, recipeIds: recipeIdsByMeal.get(meal.id) ?? [] }));
+  const stock = await db.getAllAsync<StockItem>('SELECT * FROM stock ORDER BY id DESC');
+  return { recipes, meals, stock };
 }
 
 export function kitchenActions(db: KitchenDatabase) {
@@ -89,6 +131,31 @@ export function kitchenActions(db: KitchenDatabase) {
     },
     async deleteRecipe(id: number) {
       await db.runAsync('DELETE FROM recipes WHERE id = ?', id);
+    },
+    async saveMeal(input: MealInput, id?: number) {
+      return transaction(db, async () => {
+        let mealId = id;
+        if (mealId === undefined) {
+          const result = await db.runAsync('INSERT INTO meals (name, day) VALUES (?, ?)', input.name, input.day);
+          mealId = result.lastInsertRowId;
+        } else {
+          await db.runAsync('UPDATE meals SET name = ?, day = ? WHERE id = ?', input.name, input.day, mealId);
+          await db.runAsync('DELETE FROM meal_recipes WHERE meal_id = ?', mealId);
+        }
+        for (const [position, recipeId] of input.recipeIds.entries()) {
+          await db.runAsync('INSERT INTO meal_recipes VALUES (?, ?, ?)', mealId, recipeId, position);
+        }
+        return mealId;
+      });
+    },
+    async deleteMeal(id: number) {
+      await db.runAsync('DELETE FROM meals WHERE id = ?', id);
+    },
+    async addStock(input: Ingredient) {
+      await db.runAsync('INSERT INTO stock (name, quantity, unit) VALUES (?, ?, ?)', input.name, input.quantity, input.unit);
+    },
+    async deleteStock(id: number) {
+      await db.runAsync('DELETE FROM stock WHERE id = ?', id);
     },
   };
 }

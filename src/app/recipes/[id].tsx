@@ -46,7 +46,7 @@ export default function RecipeDetailScreen() {
           onPress={() => void run(() => Linking.openURL(recipe.sourceUrl!))} />
       )}
       <Action label="删除菜谱" icon="trash-outline" variant="danger" disabled={busy}
-        onPress={() => confirmDelete('删除菜谱？', `将删除「${recipe.title}」。`, () => void run(async () => {
+        onPress={() => confirmDelete('删除菜谱？', `将删除「${recipe.title}」，并从相关菜单移除这道菜。`, () => void run(async () => {
           await write((actions) => actions.deleteRecipe(recipe.id));
           router.back();
         }))} />

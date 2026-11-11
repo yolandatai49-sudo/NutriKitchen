@@ -53,3 +53,26 @@ test('saves, edits, favorites and deletes recipes in a reopened SQLite file', as
     rmSync(folder, { recursive: true, force: true });
   }
 });
+
+test('stores menu selection order and rolls back changes if a selected recipe is missing', async () => {
+  const { db, close } = open(':memory:');
+  try {
+    await initializeDatabase(db);
+    const actions = kitchenActions(db);
+    const recipe = {
+      title: '番茄汤', category: '汤', ingredients: [], steps: [], sourceUrl: null, pending: false,
+    };
+    const soup = await actions.saveRecipe(recipe);
+    const rice = await actions.saveRecipe({ ...recipe, title: '米饭' });
+    const meal = { name: '周末晚餐', day: '2026-11-15', recipeIds: [rice, soup] };
+    const id = await actions.saveMeal(meal);
+    await assert.rejects(actions.saveMeal({ ...meal, name: '改名', recipeIds: [soup, 999] }, id), /FOREIGN KEY/);
+    assert.deepEqual((await loadKitchen(db)).meals, [{ ...meal, id }]);
+    await actions.deleteRecipe(rice);
+    assert.deepEqual((await loadKitchen(db)).meals[0].recipeIds, [soup]);
+    await actions.deleteMeal(id);
+    assert.deepEqual((await loadKitchen(db)).meals, []);
+  } finally {
+    close();
+  }
+});

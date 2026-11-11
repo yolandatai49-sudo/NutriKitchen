@@ -19,6 +19,8 @@ export default function TabLayout() {
       tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
     }}>
       <Tabs.Screen name="index" options={{ title: '菜谱', tabBarIcon: tabIcon('book-outline') }} />
+      <Tabs.Screen name="menu" options={{ title: '菜单', tabBarIcon: tabIcon('restaurant-outline') }} />
+      <Tabs.Screen name="fridge" options={{ title: '冰箱', tabBarIcon: tabIcon('cube-outline') }} />
     </Tabs>
   );
 }
