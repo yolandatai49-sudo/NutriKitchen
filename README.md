@@ -60,9 +60,11 @@ TestFlight 与 App Store 发布使用 Apple Developer Program，官方标准费�
 
 ## 网页版
 
+公开站点为 [nutrikitchen.expo.app](https://nutrikitchen.expo.app/)。
+
 电脑版使用侧栏，窄屏保留底部导航。执行 `npm run web`，打开 [http://localhost:8082](http://localhost:8082)。网页使用浏览器里的 SQLite，不要求登录。浏览器数据与 iPhone 数据各自保存；不同域名或浏览器之间也不会自动同步。
 
-`npm run build:web` 生成可发布的 `dist/`。正式托管使用 HTTPS，将页面路由回退到 `index.html`，并设置 `Cross-Origin-Opener-Policy: same-origin` 和 `Cross-Origin-Embedder-Policy: require-corp`，供 SQLite WebAssembly 运行。Expo Hosting 支持这些响应头，项目已经配置。[Expo SQLite 网页配置](https://docs.expo.dev/versions/latest/sdk/sqlite/#web-setup) · [Expo Hosting 发布说明](https://docs.expo.dev/eas/hosting/get-started/)
+`npm run build:web` 生成 `dist/client` 和 `dist/server`。登录已连接的 Expo 账号后，运行 `eas deploy --prod --no-source-maps` 更新公开站点。Expo Hosting 会给网页添加浏览器 SQLite 所需的 COOP 和 COEP 响应头。[Expo Hosting 发布说明](https://docs.expo.dev/eas/hosting/get-started/)
 
 旧站 `what-to-cook` 的记录保存在原浏览器的 IndexedDB。换站前，在旧站的「我的厨房 → 导出」备份 JSON。当前 NutriKitchen 不会自动导入旧站备份。
 

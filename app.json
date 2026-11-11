@@ -33,8 +33,23 @@
       "typedRoutes": true
     },
     "web": {
-      "output": "single",
+      "output": "server",
       "favicon": "./assets/icon.png"
-    }
+    },
+    "extra": {
+      "router": {
+        "headers": {
+          "Cross-Origin-Embedder-Policy": "require-corp",
+          "Cross-Origin-Opener-Policy": "same-origin"
+        },
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "5eb6d93f-296f-4175-8cca-95d9d2f455aa"
+      }
+    },
+    "owner": "ariadai"
   }
 }
