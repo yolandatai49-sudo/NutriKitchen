@@ -138,3 +138,88 @@ test('persists nutritional label values and can edit or delete an entry', async 
     rmSync(folder, { recursive: true, force: true });
   }
 });
+
+test('preserves version-one recipes while migrating all later tables', async () => {
+  const { db, close } = open(':memory:');
+  try {
+    await db.execAsync(`
+      CREATE TABLE recipes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, category TEXT NOT NULL,
+        ingredients TEXT NOT NULL, steps TEXT NOT NULL, source_url TEXT,
+        pending INTEGER NOT NULL, favorite INTEGER NOT NULL DEFAULT 0
+      );
+      INSERT INTO recipes (title, category, ingredients, steps, pending) VALUES ('旧菜谱', '汤', '[]', '[]', 1);
+      PRAGMA user_version = 1;
+    `);
+    await initializeDatabase(db);
+    const data = await loadKitchen(db);
+    assert.equal(data.recipes[0].title, '旧菜谱');
+    assert.deepEqual(data.shoppingAdjustments, []);
+    await initializeDatabase(db);
+    assert.equal((await loadKitchen(db)).recipes.length, 1);
+  } finally {
+    close();
+  }
+});
+
+test('saves and restores automatic shopping adjustments and removes them with the meal', async () => {
+  const { db, close } = open(':memory:');
+  try {
+    await initializeDatabase(db);
+    const actions = kitchenActions(db);
+    const recipeId = await actions.saveRecipe({
+      title: '汤', category: '汤', ingredients: [], steps: [], sourceUrl: null, pending: false,
+    });
+    const mealId = await actions.saveMeal({ name: '晚饭', day: '2026-11-10', recipeIds: [recipeId] });
+    const edit = {
+      mealId, ingredientKey: 'tomato', originalAmountKey: '250',
+      replacement: { name: '番茄', quantity: 2, unit: '个' },
+    };
+    await actions.setShoppingAdjustment(edit);
+    assert.deepEqual((await loadKitchen(db)).shoppingAdjustments, [edit]);
+    await actions.setShoppingAdjustment({ ...edit, replacement: null });
+    assert.equal((await loadKitchen(db)).shoppingAdjustments[0].replacement, null);
+    await actions.resetShoppingAdjustments(mealId);
+    assert.deepEqual((await loadKitchen(db)).shoppingAdjustments, []);
+    await actions.setShoppingAdjustment(edit);
+    await actions.deleteMeal(mealId);
+    assert.deepEqual((await loadKitchen(db)).shoppingAdjustments, []);
+  } finally {
+    close();
+  }
+});
+
+test('preserves the complete kitchen state after closing and reopening the database', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'nutrikitchen-test-'));
+  const path = join(folder, 'kitchen.sqlite');
+  let connection = open(path);
+  try {
+    await initializeDatabase(connection.db);
+    const actions = kitchenActions(connection.db);
+    const ingredient = { name: '番茄', quantity: 300, unit: '克' };
+    const recipeId = await actions.saveRecipe({
+      title: '番茄汤', category: '汤', ingredients: [ingredient], steps: ['煮。'], sourceUrl: null, pending: false,
+    });
+    const mealId = await actions.saveMeal({ name: '晚饭', day: '2026-11-10', recipeIds: [recipeId] });
+    await actions.addStock({ ...ingredient, quantity: 100 });
+    await actions.saveShoppingItem({ name: '厨房纸', quantity: 1, unit: '包' });
+    const itemId = (await loadKitchen(connection.db)).shopping[0].id;
+    await actions.setShoppingItemChecked(itemId, true);
+    await actions.setShoppingCheck({ mealId, ingredientKey: 'tomato', amountKey: '200' }, true);
+    await actions.setShoppingAdjustment({
+      mealId, ingredientKey: 'tomato', originalAmountKey: '200',
+      replacement: { name: '番茄', quantity: 2, unit: '个' },
+    });
+    await actions.saveNutritionEntry({
+      day: '2026-11-10', name: '酸奶', grams: 150, per100: { kcal: 100, protein: 4, carbs: 8, fat: 3 },
+    });
+    const snapshot = await loadKitchen(connection.db);
+    connection.close();
+    connection = open(path);
+    await initializeDatabase(connection.db);
+    assert.deepEqual(await loadKitchen(connection.db), snapshot);
+  } finally {
+    connection.close();
+    rmSync(folder, { recursive: true, force: true });
+  }
+});

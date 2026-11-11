@@ -4,7 +4,7 @@ import { View } from 'react-native';
 import { Action, Body, Card, Chip, Empty, Field, Heading, Page, Row, ui, useTask } from '../../components/ui';
 import { useKitchen } from '../../data/kitchen';
 import { DateField } from '../../components/date-field';
-import { localDay } from '../../domain/dates';
+import { dayOrToday } from '../../domain/dates';
 import { buildNutritionEntry, type NutritionEntry } from '../../domain/nutrition';
 import { normalizeName, readDecimal } from '../../domain/recipes';
 
@@ -16,7 +16,7 @@ export default function NutritionFormRoute() {
   if (id && !entry) {
     return <Page title="编辑记录" detail><Empty icon="nutrition-outline" title="找不到这条记录" description="返回营养记录查看其他食物。" /></Page>;
   }
-  return <NutritionForm key={id ?? 'new'} entry={entry} initialDay={day ?? localDay()} />;
+  return <NutritionForm key={id ?? 'new'} entry={entry} initialDay={dayOrToday(day)} />;
 }
 
 function NutritionForm({ entry, initialDay }: { entry?: NutritionEntry; initialDay: string }) {

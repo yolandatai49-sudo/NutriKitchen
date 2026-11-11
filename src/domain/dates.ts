@@ -15,6 +15,17 @@ export function parseDay(raw: string): Date {
   throw new Error('请输入有效日期，格式为 YYYY-MM-DD。');
 }
 
+export function dayOrToday(raw: unknown): string {
+  if (typeof raw === 'string') {
+    try {
+      return localDay(parseDay(raw));
+    } catch {
+      // Invalid deep-link dates fall back to the current local day.
+    }
+  }
+  return localDay();
+}
+
 export function moveDay(day: string, offset: number): string {
   const date = parseDay(day);
   date.setDate(date.getDate() + offset);

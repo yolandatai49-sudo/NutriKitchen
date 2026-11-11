@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps, ReactNode } from 'react';
 import { useRef, useState } from 'react';
 import {
-  Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet,
+  Alert, Pressable, ScrollView, StyleSheet,
   Text, TextInput, View, type TextInputProps,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,20 +32,19 @@ export function Page({ title, subtitle, headerAction, children, detail = false }
 }) {
   return (
     <SafeAreaView style={styles.safe} edges={detail ? ['bottom', 'left', 'right'] : ['top', 'left', 'right']}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
-          <View style={styles.content}>
-            <View style={styles.pageHeader}>
-              <View style={styles.flex}>
-                <Text accessibilityRole="header" style={styles.title}>{title}</Text>
-                {!!subtitle && <Body>{subtitle}</Body>}
-              </View>
-              {headerAction}
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets>
+        <View style={styles.content}>
+          <View style={styles.pageHeader}>
+            <View style={styles.flex}>
+              <Text accessibilityRole="header" style={styles.title}>{title}</Text>
+              {!!subtitle && <Body>{subtitle}</Body>}
             </View>
-            {children}
+            {headerAction}
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+          {children}
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -143,10 +142,10 @@ export function useTask() {
   return { busy, run };
 }
 
-export function confirmDelete(title: string, message: string, onDelete: () => void) {
+export function confirmDelete(title: string, message: string, onDelete: () => void, label = '删除') {
   Alert.alert(title, message, [
     { text: '取消', style: 'cancel' },
-    { text: '删除', style: 'destructive', onPress: onDelete },
+    { text: label, style: 'destructive', onPress: onDelete },
   ]);
 }
 

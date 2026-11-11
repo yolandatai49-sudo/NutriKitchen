@@ -7,19 +7,21 @@ import { useKitchen } from '../../data/kitchen';
 import { formatAmount, missingIngredients } from '../../domain/inventory';
 import { recipesForMeal } from '../../domain/meals';
 import { readIngredient, type Ingredient } from '../../domain/recipes';
-import { isShortageChecked, shortageAmountKey, type ShoppingItem } from '../../domain/shopping';
+import { adjustedShortages, isShortageChecked, shortageAmountKey, type ShoppingItem, type ShoppingShortage } from '../../domain/shopping';
 
 export default function ShoppingScreen() {
   const router = useRouter();
   const { mealId } = useLocalSearchParams<{ mealId?: string }>();
-  const { data: { meals, recipes, stock, shopping, shoppingChecks }, write } = useKitchen();
+  const { data: { meals, recipes, stock, shopping, shoppingChecks, shoppingAdjustments }, write } = useKitchen();
   const { busy, run } = useTask();
   const [editor, setEditor] = useState<ShoppingItem | 'new' | null>(null);
 
   const meal = meals.find((item) => item.id === Number(mealId)) ?? meals[0];
   const dishes = recipesForMeal(meal, recipes);
   const required = dishes.flatMap((recipe) => recipe.ingredients);
-  const missing = missingIngredients(required, stock);
+  const calculated = missingIngredients(required, stock);
+  const missing = adjustedShortages(calculated, shoppingAdjustments, meal?.id ?? 0);
+  const hasAdjustments = shoppingAdjustments.some((item) => item.mealId === meal?.id);
   const checkedCount = shopping.filter((item) => item.checked).length;
 
   async function saveItem(input: Ingredient, id?: number) {
@@ -47,17 +49,32 @@ export default function ShoppingScreen() {
           <>
             {dishes.some((dish) => dish.pending) && <Body>菜单包含待整理菜谱，清单只计算已录入的食材。</Body>}
             {!required.length && <Body>这顿饭还没有已录入的食材。</Body>}
-            {!!required.length && !missing.length && <Badge>已录入的食材齐全</Badge>}
+            {!!required.length && !calculated.length && <Badge>已录入的食材齐全</Badge>}
+            {!!calculated.length && !missing.length && <Body>已移除本餐全部缺料项目。</Body>}
             {missing.map((item) => {
               const checked = isShortageChecked(shoppingChecks, meal.id, item);
               return (
-                <CheckItem key={item.key} item={item} checked={checked} disabled={busy}
-                  note={item.needsReview ? '库存量或单位待核对' : undefined}
+                <AutomaticItem key={item.key + item.originalAmountKey} item={item} checked={checked} disabled={busy}
+                  onSave={async (input) => {
+                    await write((actions) => actions.setShoppingAdjustment({
+                      mealId: meal.id, ingredientKey: item.key,
+                      originalAmountKey: item.originalAmountKey, replacement: input,
+                    }));
+                  }}
+                  onDelete={() => void run(() => write((actions) => actions.setShoppingAdjustment({
+                    mealId: meal.id, ingredientKey: item.key,
+                    originalAmountKey: item.originalAmountKey, replacement: null,
+                  })))}
                   onPress={() => void run(() => write((actions) => actions.setShoppingCheck({
                     mealId: meal.id, ingredientKey: item.key, amountKey: shortageAmountKey(item),
                   }, !checked)))} />
               );
             })}
+            {hasAdjustments && <Action label="恢复自动清单" variant="quiet" disabled={busy} onPress={() => {
+              confirmDelete('恢复自动清单？', '将清除本餐的手动调整、移除记录和勾选状态。', () => {
+                void run(() => write((actions) => actions.resetShoppingAdjustments(meal.id)));
+              }, '恢复');
+            }} />}
           </>
         )}
       </Card>
@@ -90,7 +107,33 @@ export default function ShoppingScreen() {
   );
 }
 
-function ShoppingEditor({ item, onSave }: { item?: ShoppingItem; onSave: (input: Ingredient) => Promise<void> }) {
+function AutomaticItem({ item, checked, disabled, onPress, onSave, onDelete }: {
+  item: ShoppingShortage;
+  checked: boolean;
+  disabled: boolean;
+  onPress: () => void;
+  onSave: (input: Ingredient) => Promise<void>;
+  onDelete: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  return (
+    <View style={ui.stack}>
+      <CheckItem item={item} checked={checked} disabled={disabled} onPress={onPress}
+        note={item.adjusted ? '已手动调整' : item.needsReview ? '库存量或单位待核对' : undefined} />
+      <Row wrap>
+        <Action label={editing ? '取消编辑' : '编辑'} variant="quiet" disabled={disabled} onPress={() => setEditing(!editing)} />
+        <Action label="移除" variant="danger" disabled={disabled}
+          onPress={() => confirmDelete('移除缺料项目？', `将从本餐购物清单移除「${item.name}」。`, onDelete, '移除')} />
+      </Row>
+      {editing && <ShoppingEditor item={item} onSave={async (input) => {
+        await onSave(input);
+        setEditing(false);
+      }} />}
+    </View>
+  );
+}
+
+function ShoppingEditor({ item, onSave }: { item?: Ingredient; onSave: (input: Ingredient) => Promise<void> }) {
   const { run, busy } = useTask();
   const [name, setName] = useState(item?.name ?? '');
   const [quantity, setQuantity] = useState(item?.quantity?.toString() ?? '');
@@ -117,7 +160,8 @@ function CheckItem({ item, checked, onPress, note, disabled }: {
   item: Ingredient; checked: boolean; onPress: () => void; note?: string; disabled: boolean;
 }) {
   return (
-    <Pressable accessibilityRole="checkbox" accessibilityState={{ checked, disabled }} disabled={disabled} onPress={onPress}
+    <Pressable accessibilityRole="checkbox" accessibilityLabel={`${item.name}，${formatAmount(item)}${note ? `，${note}` : ''}`}
+      accessibilityState={{ checked, disabled }} disabled={disabled} onPress={onPress}
       style={({ pressed }) => [styles.check, pressed && styles.pressed]}>
       <Ionicons name={checked ? 'checkbox' : 'square-outline'} size={24} color={palette.accent} />
       <View style={ui.grow}>

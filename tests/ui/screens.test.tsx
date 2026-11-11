@@ -1,6 +1,7 @@
 import { beforeEach, expect, jest, test } from '@jest/globals';
-import { fireEvent, render } from '@testing-library/react-native';
+import { act, fireEvent, render } from '@testing-library/react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Alert } from 'react-native';
 import RecipesScreen from '../../src/app/(tabs)/index';
 import MenuScreen from '../../src/app/(tabs)/menu';
 import FridgeScreen from '../../src/app/(tabs)/fridge';
@@ -24,6 +25,7 @@ const actions = {
   saveShoppingItem: jest.fn<KitchenActions['saveShoppingItem']>(),
   setShoppingCheck: jest.fn<KitchenActions['setShoppingCheck']>(),
   saveNutritionEntry: jest.fn<KitchenActions['saveNutritionEntry']>(),
+  setShoppingAdjustment: jest.fn<KitchenActions['setShoppingAdjustment']>(),
 };
 
 beforeEach(() => {
@@ -34,7 +36,8 @@ beforeEach(() => {
   actions.saveShoppingItem.mockResolvedValue(undefined);
   actions.setShoppingCheck.mockResolvedValue(undefined);
   actions.saveNutritionEntry.mockResolvedValue(undefined);
-  data = { recipes: [], meals: [], stock: [], shopping: [], shoppingChecks: [], nutrition: [] };
+  actions.setShoppingAdjustment.mockResolvedValue(undefined);
+  data = { recipes: [], meals: [], stock: [], shopping: [], shoppingChecks: [], nutrition: [], shoppingAdjustments: [] };
   jest.mocked(useRouter).mockReturnValue(router as unknown as ReturnType<typeof useRouter>);
   jest.mocked(useLocalSearchParams).mockReturnValue({});
   jest.mocked(useKitchen).mockReturnValue({
@@ -114,4 +117,45 @@ test('saves grams and nutritional label values through the form', async () => {
   expect(actions.saveNutritionEntry).toHaveBeenCalledWith(expect.objectContaining({
     name: '酸奶', grams: 150, per100: { kcal: expect.closeTo(100, 10), protein: 4, carbs: 8, fat: 3 },
   }), undefined);
+});
+
+test('edits the quantity of an automatically generated shopping item', async () => {
+  data.recipes.push({
+    id: 1, title: '汤', category: '汤', ingredients: [{ name: '番茄', quantity: 300, unit: '克' }],
+    steps: [], sourceUrl: null, pending: false, favorite: false,
+  });
+  data.meals.push({ id: 1, name: '晚饭', day: '2026-11-10', recipeIds: [1] });
+  const screen = await render(<ShoppingScreen />);
+  await fireEvent.press(screen.getByRole('button', { name: '编辑' }));
+  await fireEvent.changeText(screen.getByLabelText('数量（选填）'), '2');
+  await fireEvent.changeText(screen.getByLabelText('单位'), '个');
+  await fireEvent.press(screen.getByRole('button', { name: '保存' }));
+  expect(actions.setShoppingAdjustment).toHaveBeenCalledWith(expect.objectContaining({
+    mealId: 1, replacement: { name: '番茄', quantity: 2, unit: '个' },
+  }));
+});
+
+test('removes an automatically generated shopping item after confirmation', async () => {
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+  try {
+    data.recipes.push({
+      id: 1, title: '汤', category: '汤', ingredients: [{ name: '番茄', quantity: 300, unit: '克' }],
+      steps: [], sourceUrl: null, pending: false, favorite: false,
+    });
+    data.meals.push({ id: 1, name: '晚饭', day: '2026-11-10', recipeIds: [1] });
+    const screen = await render(<ShoppingScreen />);
+    await fireEvent.press(screen.getByRole('button', { name: '移除' }));
+    const remove = alert.mock.calls[0][2]?.find((button) => button.text === '移除');
+    expect(actions.setShoppingAdjustment).not.toHaveBeenCalled();
+    await act(async () => { remove?.onPress?.(); });
+    expect(actions.setShoppingAdjustment).toHaveBeenCalledWith(expect.objectContaining({ mealId: 1, replacement: null }));
+  } finally {
+    alert.mockRestore();
+  }
+});
+
+test('opens the nutrition form safely when a deep link contains an invalid date', async () => {
+  jest.mocked(useLocalSearchParams).mockReturnValue({ day: 'invalid-date' });
+  const screen = await render(<NutritionForm />);
+  expect(screen.getByLabelText('记录日期')).toBeTruthy();
 });

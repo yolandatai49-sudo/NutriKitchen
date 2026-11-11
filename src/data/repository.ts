@@ -1,7 +1,7 @@
 import type { Ingredient, Recipe, RecipeInput } from '../domain/recipes.ts';
 import type { MealInput, MealPlan } from '../domain/meals.ts';
 import type { StockItem } from '../domain/inventory.ts';
-import type { ShoppingCheck, ShoppingItem } from '../domain/shopping.ts';
+import type { ShoppingAdjustment, ShoppingCheck, ShoppingItem } from '../domain/shopping.ts';
 import type { NutritionEntry, NutritionInput } from '../domain/nutrition.ts';
 
 type SqlValue = string | number | null;
@@ -70,6 +70,14 @@ const migrations = [`
     fat REAL NOT NULL CHECK (fat >= 0)
   );
   CREATE INDEX nutrition_day ON nutrition_entries(day DESC, id DESC);
+`, `
+  CREATE TABLE shopping_adjustments (
+    meal_id INTEGER NOT NULL REFERENCES meals(id) ON DELETE CASCADE,
+    ingredient_key TEXT NOT NULL,
+    original_amount_key TEXT NOT NULL,
+    replacement TEXT,
+    PRIMARY KEY (meal_id, ingredient_key)
+  );
 `];
 
 export async function initializeDatabase(db: KitchenDatabase) {
@@ -144,7 +152,14 @@ export async function loadKitchen(db: KitchenDatabase) {
   const nutrition = nutritionRows.map(({ kcal, protein, carbs, fat, ...entry }) => ({
     ...entry, per100: { kcal, protein, carbs, fat },
   }));
-  return { recipes, meals, stock, shopping, shoppingChecks, nutrition };
+  const adjustmentRows = await db.getAllAsync<Omit<ShoppingAdjustment, 'replacement'> & { replacement: string | null }>(
+    `SELECT meal_id AS mealId, ingredient_key AS ingredientKey, original_amount_key AS originalAmountKey, replacement
+     FROM shopping_adjustments`,
+  );
+  const shoppingAdjustments = adjustmentRows.map((row) => ({
+    ...row, replacement: row.replacement === null ? null : JSON.parse(row.replacement) as Ingredient,
+  }));
+  return { recipes, meals, stock, shopping, shoppingChecks, nutrition, shoppingAdjustments };
 }
 
 export function kitchenActions(db: KitchenDatabase) {
@@ -245,6 +260,21 @@ export function kitchenActions(db: KitchenDatabase) {
     },
     async deleteNutritionEntry(id: number) {
       await db.runAsync('DELETE FROM nutrition_entries WHERE id = ?', id);
+    },
+    async setShoppingAdjustment(input: ShoppingAdjustment) {
+      await db.runAsync(
+        `INSERT INTO shopping_adjustments VALUES (?, ?, ?, ?)
+         ON CONFLICT (meal_id, ingredient_key) DO UPDATE SET
+         original_amount_key = excluded.original_amount_key, replacement = excluded.replacement`,
+        input.mealId, input.ingredientKey, input.originalAmountKey,
+        input.replacement === null ? null : JSON.stringify(input.replacement),
+      );
+    },
+    async resetShoppingAdjustments(mealId: number) {
+      await transaction(db, async () => {
+        await db.runAsync('DELETE FROM shopping_adjustments WHERE meal_id = ?', mealId);
+        await db.runAsync('DELETE FROM shopping_checks WHERE meal_id = ?', mealId);
+      });
     },
   };
 }

@@ -27,7 +27,10 @@ export function readDecimal(raw: string): number | null {
 export function readIngredient(draft: IngredientDraft): Ingredient {
   const name = draft.name.trim();
   if (!name) throw new Error('请填写食材名称。');
-  if (!draft.quantity.trim()) return { name, quantity: null, unit: '' };
+  if (!draft.quantity.trim()) {
+    if (draft.unit.trim()) throw new Error('填写单位时，请同时填写数量。');
+    return { name, quantity: null, unit: '' };
+  }
 
   const quantity = readDecimal(draft.quantity);
   const unit = draft.unit.trim();
