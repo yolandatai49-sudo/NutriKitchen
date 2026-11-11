@@ -113,3 +113,28 @@ test('updates stock and manual shopping items and stores checked shortages per m
     close();
   }
 });
+
+test('persists nutritional label values and can edit or delete an entry', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'nutrikitchen-test-'));
+  const path = join(folder, 'nutrition.sqlite');
+  let connection = open(path);
+  try {
+    await initializeDatabase(connection.db);
+    const entry = {
+      day: '2026-11-10', name: '酸奶', grams: 150, per100: { kcal: 96.5, protein: 4, carbs: 6.7, fat: 0 },
+    };
+    await kitchenActions(connection.db).saveNutritionEntry(entry);
+    const id = (await loadKitchen(connection.db)).nutrition[0].id;
+    connection.close();
+    connection = open(path);
+    await initializeDatabase(connection.db);
+    assert.deepEqual((await loadKitchen(connection.db)).nutrition, [{ ...entry, id }]);
+    await kitchenActions(connection.db).saveNutritionEntry({ ...entry, grams: 75 }, id);
+    assert.equal((await loadKitchen(connection.db)).nutrition[0].grams, 75);
+    await kitchenActions(connection.db).deleteNutritionEntry(id);
+    assert.deepEqual((await loadKitchen(connection.db)).nutrition, []);
+  } finally {
+    connection.close();
+    rmSync(folder, { recursive: true, force: true });
+  }
+});

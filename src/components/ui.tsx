@@ -80,13 +80,13 @@ export function Action({ label, icon, onPress, variant = 'primary', disabled = f
   const color = variant === 'primary' ? palette.onAccent : variant === 'danger' ? palette.danger : palette.accent;
   return (
     <Pressable
-      accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled}
+      accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.action, variant === 'primary' && styles.primary,
         variant === 'quiet' && styles.quiet, (pressed || disabled) && styles.dim,
       ]}>
-      {icon && <Ionicons name={icon} color={color} size={17} />}
+      {icon && <Ionicons name={icon} color={color} size={17} accessible={false} />}
       <Text style={[styles.actionText, { color }]}>{label}</Text>
     </Pressable>
   );
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
   card: { borderRadius: 19, borderWidth: 1, borderColor: palette.line, padding: 16, gap: 12, backgroundColor: palette.surface },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   wrap: { flexWrap: 'wrap' },
-  badge: { color: palette.accent, backgroundColor: palette.soft, fontSize: 12, fontWeight: '700', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 9, overflow: 'hidden' },
+  badge: { color: palette.accent, backgroundColor: palette.soft, fontSize: 12, fontWeight: '700', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 9, overflow: 'hidden', maxWidth: '100%', flexShrink: 1 },
   warmBadge: { color: palette.orange, backgroundColor: palette.orangeSoft },
   action: { minHeight: 44, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
   primary: { backgroundColor: palette.accent },

@@ -22,6 +22,7 @@ export default function TabLayout() {
       <Tabs.Screen name="menu" options={{ title: '菜单', tabBarIcon: tabIcon('restaurant-outline') }} />
       <Tabs.Screen name="fridge" options={{ title: '冰箱', tabBarIcon: tabIcon('cube-outline') }} />
       <Tabs.Screen name="shopping" options={{ title: '购物', tabBarIcon: tabIcon('basket-outline') }} />
+      <Tabs.Screen name="nutrition" options={{ title: '营养', tabBarIcon: tabIcon('nutrition-outline') }} />
     </Tabs>
   );
 }

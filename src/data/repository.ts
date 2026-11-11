@@ -2,6 +2,7 @@ import type { Ingredient, Recipe, RecipeInput } from '../domain/recipes.ts';
 import type { MealInput, MealPlan } from '../domain/meals.ts';
 import type { StockItem } from '../domain/inventory.ts';
 import type { ShoppingCheck, ShoppingItem } from '../domain/shopping.ts';
+import type { NutritionEntry, NutritionInput } from '../domain/nutrition.ts';
 
 type SqlValue = string | number | null;
 
@@ -57,10 +58,22 @@ const migrations = [`
     amount_key TEXT NOT NULL,
     PRIMARY KEY (meal_id, ingredient_key)
   );
+`, `
+  CREATE TABLE nutrition_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    day TEXT NOT NULL,
+    name TEXT NOT NULL,
+    grams REAL NOT NULL CHECK (grams > 0),
+    kcal REAL NOT NULL CHECK (kcal >= 0),
+    protein REAL NOT NULL CHECK (protein >= 0),
+    carbs REAL NOT NULL CHECK (carbs >= 0),
+    fat REAL NOT NULL CHECK (fat >= 0)
+  );
+  CREATE INDEX nutrition_day ON nutrition_entries(day DESC, id DESC);
 `];
 
 export async function initializeDatabase(db: KitchenDatabase) {
-  await db.execAsync('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
+  await db.execAsync('PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
   await transaction(db, async () => {
     const version = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
     if (!version || version.user_version > migrations.length) throw new Error('这个数据库需要更新版本的 App。');
@@ -125,7 +138,13 @@ export async function loadKitchen(db: KitchenDatabase) {
   const shoppingChecks = await db.getAllAsync<ShoppingCheck>(
     'SELECT meal_id AS mealId, ingredient_key AS ingredientKey, amount_key AS amountKey FROM shopping_checks',
   );
-  return { recipes, meals, stock, shopping, shoppingChecks };
+  const nutritionRows = await db.getAllAsync<Omit<NutritionEntry, 'per100'> & NutritionEntry['per100']>(
+    'SELECT * FROM nutrition_entries ORDER BY day DESC, id DESC',
+  );
+  const nutrition = nutritionRows.map(({ kcal, protein, carbs, fat, ...entry }) => ({
+    ...entry, per100: { kcal, protein, carbs, fat },
+  }));
+  return { recipes, meals, stock, shopping, shoppingChecks, nutrition };
 }
 
 export function kitchenActions(db: KitchenDatabase) {
@@ -208,6 +227,24 @@ export function kitchenActions(db: KitchenDatabase) {
           'DELETE FROM shopping_checks WHERE meal_id = ? AND ingredient_key = ?', check.mealId, check.ingredientKey,
         );
       }
+    },
+    async saveNutritionEntry(input: NutritionInput, id?: number) {
+      const { kcal, protein, carbs, fat } = input.per100;
+      const params = [input.day, input.name, input.grams, kcal, protein, carbs, fat];
+      if (id === undefined) {
+        await db.runAsync(
+          'INSERT INTO nutrition_entries (day, name, grams, kcal, protein, carbs, fat) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          ...params,
+        );
+      } else {
+        await db.runAsync(
+          'UPDATE nutrition_entries SET day = ?, name = ?, grams = ?, kcal = ?, protein = ?, carbs = ?, fat = ? WHERE id = ?',
+          ...params, id,
+        );
+      }
+    },
+    async deleteNutritionEntry(id: number) {
+      await db.runAsync('DELETE FROM nutrition_entries WHERE id = ?', id);
     },
   };
 }

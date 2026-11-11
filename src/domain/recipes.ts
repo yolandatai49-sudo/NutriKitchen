@@ -19,7 +19,7 @@ export function normalizeName(value: string): string {
 
 export function readDecimal(raw: string): number | null {
   const value = raw.normalize('NFKC').trim();
-  if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(value)) return null;
+  if (!/^(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value)) return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 }

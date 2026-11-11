@@ -34,6 +34,7 @@ export default function RootLayout() {
           <Stack.Screen name="recipes/[id]" options={{ title: '菜谱详情' }} />
           <Stack.Screen name="recipes/form" options={{ title: '菜谱编辑' }} />
           <Stack.Screen name="meals/form" options={{ title: '选菜' }} />
+          <Stack.Screen name="nutrition/form" options={{ title: '营养编辑' }} />
         </Stack>
       </KitchenProvider>
     </SQLiteProvider>

@@ -14,3 +14,9 @@ export function parseDay(raw: string): Date {
   }
   throw new Error('请输入有效日期，格式为 YYYY-MM-DD。');
 }
+
+export function moveDay(day: string, offset: number): string {
+  const date = parseDay(day);
+  date.setDate(date.getDate() + offset);
+  return localDay(date);
+}

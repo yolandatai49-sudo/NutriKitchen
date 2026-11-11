@@ -7,12 +7,21 @@
     "icon": "./assets/icon.png",
     "scheme": "nutrikitchen",
     "userInterfaceStyle": "light",
-    "platforms": ["ios"],
+    "platforms": [
+      "ios"
+    ],
     "ios": {
       "bundleIdentifier": "com.nutrikitchen.app",
       "supportsTablet": true
     },
-    "plugins": ["expo-router", "expo-sqlite"],
-    "experiments": { "typedRoutes": true }
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "@react-native-community/datetimepicker",
+      "expo-asset"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }

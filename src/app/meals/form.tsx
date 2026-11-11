@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Action, Badge, Card, Empty, Field, Heading, Page, Row, palette, ui, useTask } from '../../components/ui';
 import { useKitchen } from '../../data/kitchen';
+import { DateField } from '../../components/date-field';
 import { localDay } from '../../domain/dates';
 import { buildMeal, type MealPlan } from '../../domain/meals';
 import { filterRecipes } from '../../domain/recipes';
@@ -34,7 +35,7 @@ function MealForm({ meal }: { meal?: MealPlan }) {
     <Page title={meal ? '编辑菜单' : '新建一餐'} detail>
       <Card>
         <Field label="这顿饭的名称" placeholder="例如周末晚餐" value={name} onChangeText={setName} />
-        <Field label="日期（YYYY-MM-DD）" value={day} onChangeText={setDay} autoCorrect={false} />
+        <DateField label="用餐日期" day={day} onChange={setDay} />
       </Card>
       <Card>
         <Heading>已选 {selectedRecipes.length} 道菜</Heading>
