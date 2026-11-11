@@ -4,7 +4,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator } from 'react-native';
 import { Action, Empty, Page, palette } from '../components/ui';
-import { kitchenActions, loadKitchen, type KitchenActions, type KitchenData } from './repository';
+import { kitchenActions, loadKitchen, type KitchenActions, type KitchenData, type KitchenDatabase } from './repository';
 
 type KitchenContextValue = {
   data: KitchenData;
@@ -13,9 +13,17 @@ type KitchenContextValue = {
 
 const KitchenContext = createContext<KitchenContextValue | null>(null);
 
-export function KitchenProvider({ children }: { children: ReactNode }) {
-  const { t } = useLanguage();
+export function ExpoKitchenProvider({ children }: { children: ReactNode }) {
   const db = useSQLiteContext();
+  return <KitchenProvider db={db}>{children}</KitchenProvider>;
+}
+
+export function KitchenProvider({ children, db, afterWrite }: {
+  children: ReactNode;
+  db: KitchenDatabase;
+  afterWrite?: () => void;
+}) {
+  const { t } = useLanguage();
   const actions = useMemo(() => kitchenActions(db), [db]);
   const [data, setData] = useState<KitchenData | null>(null);
   const [failed, setFailed] = useState(false);
@@ -34,6 +42,7 @@ export function KitchenProvider({ children }: { children: ReactNode }) {
   function write<T>(operation: (actions: KitchenActions) => Promise<T>): Promise<T> {
     const task = tail.current.then(async () => {
       const result = await operation(actions);
+      afterWrite?.();
       try {
         setData(await loadKitchen(db));
       } catch {

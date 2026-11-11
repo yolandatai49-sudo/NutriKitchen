@@ -1,4 +1,3 @@
-import { appName } from '../domain/brand';
 import { LanguageProvider, useLanguage } from '../data/language';
 import { Stack } from 'expo-router';
 import { SQLiteProvider } from 'expo-sqlite';
@@ -7,8 +6,9 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { KitchenSidebar } from '../components/kitchen-sidebar';
 import { useDesktopLayout } from '../components/workspace-layout';
-import { Action, Empty, Page, palette, ui } from '../components/ui';
-import { KitchenProvider } from '../data/kitchen';
+import { palette, ui } from '../components/ui';
+import { ExpoKitchenProvider } from '../data/kitchen';
+import { KitchenFallback } from '../data/kitchen-fallback';
 import { initializeKitchen } from '../data/repository';
 
 export const unstable_settings = { anchor: '(tabs)' };
@@ -18,25 +18,23 @@ export default function RootLayout() {
 }
 
 function KitchenLayout() {
-  const { t } = useLanguage();
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
   if (failed) {
     return (
-      <Page title={appName}>
-        <Empty icon="warning-outline" title={t("无法打开厨房")} description={t("本地数据库暂时无法打开。")} />
-        <Action label={t("重试")} onPress={() => { setAttempt((value) => value + 1); setFailed(false); }} />
-      </Page>
+      <KitchenFallback onRetry={() => { setAttempt((value) => value + 1); setFailed(false); }}>
+        <KitchenNavigator />
+      </KitchenFallback>
     );
   }
 
   return (
     <SQLiteProvider key={attempt} databaseName="nutrikitchen.db"
       onInit={initializeKitchen} onError={() => queueMicrotask(() => setFailed(true))}>
-      <KitchenProvider>
+      <ExpoKitchenProvider>
         <KitchenNavigator />
-      </KitchenProvider>
+      </ExpoKitchenProvider>
     </SQLiteProvider>
   );
 }

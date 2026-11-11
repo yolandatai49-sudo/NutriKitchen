@@ -64,6 +64,8 @@ TestFlight 与 App Store 发布使用 Apple Developer Program，官方标准费�
 
 电脑版使用侧栏，窄屏保留底部导航。执行 `npm run web`，打开 [http://localhost:8082](http://localhost:8082)。网页使用浏览器里的 SQLite，不要求登录。浏览器数据与 iPhone 数据各自保存；不同域名或浏览器之间也不会自动同步。
 
+浏览器无法打开常规 SQLite 时（例如 Safari 无痕浏览），网页会显示临时存储提示。记录保存在当前标签页的会话中，关闭标签页后会清除。若浏览器也限制了会话存储，页面会提示刷新同样会清除记录。
+
 `npm run build:web` 生成 `dist/client` 和 `dist/server`。登录已连接的 Expo 账号后，运行 `eas deploy --prod --no-source-maps` 更新公开站点。Expo Hosting 会给网页添加浏览器 SQLite 所需的 COOP 和 COEP 响应头。[Expo Hosting 发布说明](https://docs.expo.dev/eas/hosting/get-started/)
 
 旧站 `what-to-cook` 的记录保存在原浏览器的 IndexedDB。换站前，在旧站的「我的厨房 → 导出」备份 JSON。当前 NutriKitchen 不会自动导入旧站备份。
@@ -92,7 +94,7 @@ npm run check:deps
 npm run doctor
 ```
 
-- npm run check 依次执行 TypeScript、Lint、24 项业务与 SQLite 测试，以及 22 项原生页面组件测试。
+- npm run check 依次执行 TypeScript、Lint、25 项业务与 SQLite 测试，以及 22 项原生页面组件测试。
 - npm run check:deps 检查 Expo SDK 依赖版本。
 - npm run doctor 执行 Expo 官方项目诊断。
 - iOS 生产 JavaScript / Hermes 包可通过下列命令构建。

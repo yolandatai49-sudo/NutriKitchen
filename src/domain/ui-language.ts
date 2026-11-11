@@ -77,6 +77,8 @@ const english: Record<string, string> = {
   '参考下厨房读者整理的村驴做法': 'Reader’s notes on Cunlü’s recipe (Xiachufang)',
   '操作未完成': 'Could not complete the action', '请重试。': 'Please try again.', '取消': 'Cancel',
   '无法读取本地数据': 'Could not read local data', '请重试读取数据库。': 'Try opening your local kitchen again.',
+  '临时存储 · 关闭标签页后，本次记录会清除。': 'Temporary storage · Closing this tab clears your entries.',
+  '临时存储 · 刷新或关闭页面后，本次记录会清除。': 'Temporary storage · Reloading or closing this page clears your entries.',
   '正在读取本地数据': 'Loading local data', '按需': 'As needed', '语言': 'Language',
   '工作日午饭': 'Weekday lunch', '两人家常晚餐': 'Dinner for two',
   '当天记录': 'Food for this day', '查看 {0} 的记录': 'View entries for {0}',
