@@ -1,5 +1,4 @@
 import { presentSavedRecipe } from '../../domain/recipe-collection';
-import { useKitchenMode } from '../../data/kitchen-mode';
 import { useLanguage } from '../../data/language';
 import { useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
@@ -9,7 +8,6 @@ import { recipesForMeal } from '../../domain/meals';
 
 export default function MenuScreen() {
   const { t, language } = useLanguage();
-  const demo = useKitchenMode()?.demo;
   const confirmDelete = useConfirmDelete();
   const router = useRouter();
   const { data: { meals, recipes }, write } = useKitchen();
@@ -22,7 +20,7 @@ export default function MenuScreen() {
       {!meals.length && <Empty icon="restaurant-outline" title={t("还没有菜单")} description={t("从菜谱中挑几道菜，保存为午饭、晚饭或聚餐。")} />}
       {meals.map((meal) => {
         const dishes = recipesForMeal(meal, recipes).map((recipe) => presentSavedRecipe(recipe, language === 'en'));
-        const mealName = demo ? t(meal.name) : meal.name;
+        const mealName = t(meal.name);
         return (
           <Card key={meal.id}>
             <Row>

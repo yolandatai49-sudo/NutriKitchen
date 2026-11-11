@@ -11,7 +11,7 @@ export const nutritionFields = [
 type Nutrient = typeof nutritionFields[number]['key'];
 export type Nutrients = Record<Nutrient, number>;
 export type NutritionInput = { day: string; name: string; grams: number; per100: Nutrients };
-export type NutritionEntry = NutritionInput & { id: number };
+export type NutritionEntry = NutritionInput & { id: number; starter?: true };
 
 export function buildNutritionEntry(draft: {
   day: string;

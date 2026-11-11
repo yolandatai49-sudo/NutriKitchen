@@ -51,7 +51,7 @@ beforeEach(() => {
 });
 
 test.each([
-  [RecipesScreen, '家常菜谱'],
+  [RecipesScreen, '30 道菜'],
   [MenuScreen, '还没有菜单'],
   [FridgeScreen, '冰箱还没有食材'],
   [ShoppingScreen, '没有手动项目'],
@@ -78,12 +78,30 @@ test('shows the whole gallery and filters the American collection', async () => 
 
 test('switches to English and discovers a recipe by its English name', async () => {
   const screen = await render(<LanguageProvider><RecipesScreen /></LanguageProvider>);
+  await fireEvent.press(screen.getByRole('button', { name: '语言' }));
   await fireEvent.press(screen.getByRole('button', { name: 'English' }));
   expect(screen.getByRole('tab', { name: 'Discover' })).toBeTruthy();
-  await fireEvent.press(screen.getByRole('button', { name: 'Search recipes' }));
   await fireEvent.changeText(screen.getByLabelText('Search recipes'), 'mac and cheese');
   expect(screen.getByRole('button', { name: 'View Stovetop Mac and Cheese' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'View Tomato and Eggs' })).toBeNull();
+});
+
+test('navigates whole photos within the selected cuisine and opens its recipe', async () => {
+  const screen = await render(<RecipesScreen />);
+  await fireEvent.press(screen.getByRole('button', { name: '美国日常' }));
+  await fireEvent.press(screen.getByRole('button', { name: '看大图' }));
+  expect(screen.getByLabelText('照烧鸡腿饭完整图片').props.resizeMode).toBe('contain');
+  await fireEvent.press(screen.getByRole('button', { name: '下一道菜' }));
+  expect(screen.getByLabelText('蒜香烤三文鱼完整图片')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: '查看做法' }));
+  expect(router.push).toHaveBeenCalledWith({ pathname: '/recipes/collection/[key]', params: { key: 'garlic-salmon' } });
+});
+
+test('saves a discovery card directly from its bookmark', async () => {
+  const screen = await render(<RecipesScreen />);
+  await fireEvent.press(screen.getByRole('button', { name: '收录宫保鸡丁' }));
+  expect(actions.importRecipe).toHaveBeenCalledWith(expect.objectContaining({ title: '宫保鸡丁' }), 'kung-pao-chicken');
+  expect(router.push).not.toHaveBeenCalled();
 });
 
 test('adds a suggested recipe to the local library only after the save action', async () => {

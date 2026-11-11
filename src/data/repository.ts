@@ -1,3 +1,6 @@
+import { localDay, moveDay } from '../domain/dates.ts';
+import { findCollectionRecipe } from '../domain/recipe-collection.ts';
+import { starterNutrition, starterRecipeKeys, starterShopping, starterStock } from './starter-kitchen.ts';
 import type { Ingredient, Recipe, RecipeInput } from '../domain/recipes.ts';
 import type { MealInput, MealPlan } from '../domain/meals.ts';
 import type { StockItem } from '../domain/inventory.ts';
@@ -81,6 +84,9 @@ const migrations = [`
 `, `
   ALTER TABLE recipes ADD COLUMN collection_key TEXT;
   CREATE UNIQUE INDEX recipes_collection_key ON recipes(collection_key);
+`, `
+  CREATE TABLE kitchen_setup (key TEXT PRIMARY KEY NOT NULL);
+  ALTER TABLE nutrition_entries ADD COLUMN is_starter INTEGER NOT NULL DEFAULT 0 CHECK (is_starter IN (0, 1));
 `];
 
 export async function initializeDatabase(db: KitchenDatabase) {
@@ -158,11 +164,11 @@ export async function loadKitchen(db: KitchenDatabase) {
   const shoppingChecks = await db.getAllAsync<ShoppingCheck>(
     'SELECT meal_id AS mealId, ingredient_key AS ingredientKey, amount_key AS amountKey FROM shopping_checks',
   );
-  const nutritionRows = await db.getAllAsync<Omit<NutritionEntry, 'per100'> & NutritionEntry['per100']>(
+  const nutritionRows = await db.getAllAsync<Omit<NutritionEntry, 'per100' | 'starter'> & NutritionEntry['per100'] & { is_starter: number }>(
     'SELECT * FROM nutrition_entries ORDER BY day DESC, id DESC',
   );
-  const nutrition = nutritionRows.map(({ kcal, protein, carbs, fat, ...entry }) => ({
-    ...entry, per100: { kcal, protein, carbs, fat },
+  const nutrition = nutritionRows.map(({ kcal, protein, carbs, fat, is_starter, ...entry }) => ({
+    ...entry, per100: { kcal, protein, carbs, fat }, ...(is_starter ? { starter: true as const } : {}),
   }));
   const adjustmentRows = await db.getAllAsync<Omit<ShoppingAdjustment, 'replacement'> & { replacement: string | null }>(
     `SELECT meal_id AS mealId, ingredient_key AS ingredientKey, original_amount_key AS originalAmountKey, replacement
@@ -172,6 +178,37 @@ export async function loadKitchen(db: KitchenDatabase) {
     ...row, replacement: row.replacement === null ? null : JSON.parse(row.replacement) as Ingredient,
   }));
   return { recipes, meals, stock, shopping, shoppingChecks, nutrition, shoppingAdjustments };
+}
+
+async function writeMeal(db: KitchenDatabase, input: MealInput, id?: number) {
+  let mealId = id;
+  if (mealId === undefined) {
+    const result = await db.runAsync('INSERT INTO meals (name, day) VALUES (?, ?)', input.name, input.day);
+    mealId = result.lastInsertRowId;
+  } else {
+    await db.runAsync('UPDATE meals SET name = ?, day = ? WHERE id = ?', input.name, input.day, mealId);
+    await db.runAsync('DELETE FROM meal_recipes WHERE meal_id = ?', mealId);
+  }
+  for (const [position, recipeId] of input.recipeIds.entries()) {
+    await db.runAsync('INSERT INTO meal_recipes VALUES (?, ?, ?)', mealId, recipeId, position);
+  }
+  return mealId;
+}
+
+async function writeNutrition(db: KitchenDatabase, input: NutritionInput, starter: boolean, id?: number) {
+  const { kcal, protein, carbs, fat } = input.per100;
+  const params = [input.day, input.name, input.grams, kcal, protein, carbs, fat, Number(starter)];
+  if (id === undefined) {
+    await db.runAsync(
+      'INSERT INTO nutrition_entries (day, name, grams, kcal, protein, carbs, fat, is_starter) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      ...params,
+    );
+  } else {
+    await db.runAsync(
+      'UPDATE nutrition_entries SET day = ?, name = ?, grams = ?, kcal = ?, protein = ?, carbs = ?, fat = ?, is_starter = ? WHERE id = ?',
+      ...params, id,
+    );
+  }
 }
 
 export function kitchenActions(db: KitchenDatabase) {
@@ -209,20 +246,7 @@ export function kitchenActions(db: KitchenDatabase) {
       await db.runAsync('DELETE FROM recipes WHERE id = ?', id);
     },
     async saveMeal(input: MealInput, id?: number) {
-      return transaction(db, async () => {
-        let mealId = id;
-        if (mealId === undefined) {
-          const result = await db.runAsync('INSERT INTO meals (name, day) VALUES (?, ?)', input.name, input.day);
-          mealId = result.lastInsertRowId;
-        } else {
-          await db.runAsync('UPDATE meals SET name = ?, day = ? WHERE id = ?', input.name, input.day, mealId);
-          await db.runAsync('DELETE FROM meal_recipes WHERE meal_id = ?', mealId);
-        }
-        for (const [position, recipeId] of input.recipeIds.entries()) {
-          await db.runAsync('INSERT INTO meal_recipes VALUES (?, ?, ?)', mealId, recipeId, position);
-        }
-        return mealId;
-      });
+      return transaction(db, () => writeMeal(db, input, id));
     },
     async deleteMeal(id: number) {
       await db.runAsync('DELETE FROM meals WHERE id = ?', id);
@@ -264,19 +288,10 @@ export function kitchenActions(db: KitchenDatabase) {
       }
     },
     async saveNutritionEntry(input: NutritionInput, id?: number) {
-      const { kcal, protein, carbs, fat } = input.per100;
-      const params = [input.day, input.name, input.grams, kcal, protein, carbs, fat];
-      if (id === undefined) {
-        await db.runAsync(
-          'INSERT INTO nutrition_entries (day, name, grams, kcal, protein, carbs, fat) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          ...params,
-        );
-      } else {
-        await db.runAsync(
-          'UPDATE nutrition_entries SET day = ?, name = ?, grams = ?, kcal = ?, protein = ?, carbs = ?, fat = ? WHERE id = ?',
-          ...params, id,
-        );
-      }
+      await transaction(db, async () => {
+        await writeNutrition(db, input, false, id);
+        await db.runAsync('DELETE FROM nutrition_entries WHERE is_starter = 1');
+      });
     },
     async deleteNutritionEntry(id: number) {
       await db.runAsync('DELETE FROM nutrition_entries WHERE id = ?', id);
@@ -301,3 +316,51 @@ export function kitchenActions(db: KitchenDatabase) {
 
 export type KitchenData = Awaited<ReturnType<typeof loadKitchen>>;
 export type KitchenActions = ReturnType<typeof kitchenActions>;
+
+export async function initializeKitchen(db: KitchenDatabase, today = localDay()) {
+  await initializeDatabase(db);
+  await transaction(db, async () => {
+    const seeded = await db.getFirstAsync("SELECT key FROM kitchen_setup WHERE key = 'starter-content'");
+    if (seeded) return;
+    const actions = kitchenActions(db);
+    const kitchen = await loadKitchen(db);
+    const starterIds = new Map(kitchen.recipes.flatMap(({ collectionKey, id }) => collectionKey ? [[collectionKey, id] as const] : []));
+
+    async function saveStarterRecipe(key: string) {
+      const entry = findCollectionRecipe(key);
+      if (!entry) throw new Error(`Unknown starter recipe: ${key}`);
+      const id = await actions.importRecipe(entry.recipe, key);
+      starterIds.set(key, id);
+      return id;
+    }
+
+    if (!kitchen.recipes.length) {
+      for (const key of starterRecipeKeys) {
+        const id = await saveStarterRecipe(key);
+        if (key !== 'steamed-tofu') await actions.setFavorite(id, true);
+      }
+    }
+    if (!kitchen.meals.length) {
+      const select = async (keys: string[]) => {
+        const ids: number[] = [];
+        for (const key of keys) ids.push(starterIds.get(key) ?? await saveStarterRecipe(key));
+        return ids;
+      };
+      await writeMeal(db, { name: '工作日午饭', day: today, recipeIds: await select(['yangchun-noodles', 'tomato-eggs']) });
+      await writeMeal(db, { name: '两人家常晚餐', day: moveDay(today, 1), recipeIds: await select(['hunan-beef', 'steamed-tofu']) });
+    }
+    if (!kitchen.stock.length) {
+      for (const item of starterStock) await actions.addStock(item);
+    }
+    if (!kitchen.shopping.length) {
+      for (const item of starterShopping) await db.runAsync(
+        'INSERT INTO shopping_items (name, quantity, unit, checked) VALUES (?, ?, ?, ?)',
+        item.name, item.quantity, item.unit, Number(!!item.checked),
+      );
+    }
+    if (!kitchen.nutrition.length) {
+      for (const entry of starterNutrition(today)) await writeNutrition(db, entry, true);
+    }
+    await db.runAsync("INSERT INTO kitchen_setup (key) VALUES ('starter-content')");
+  });
+}

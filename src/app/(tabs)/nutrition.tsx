@@ -1,10 +1,9 @@
 import { englishFood } from '../../domain/recipe-translations';
-import { useKitchenMode } from '../../data/kitchen-mode';
 import { useLanguage } from '../../data/language';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Action, Body, Card, Empty, Heading, Page, Row, useConfirmDelete, palette, ui, useTask } from '../../components/ui';
+import { Action, Badge, Body, Card, Empty, Heading, Page, Row, useConfirmDelete, palette, ui, useTask } from '../../components/ui';
 import { shareNutrition } from '../../data/share-nutrition';
 import { useKitchen } from '../../data/kitchen';
 import { DateField } from '../../components/date-field';
@@ -13,26 +12,26 @@ import { formatNutrient, nutritionCsv, nutritionFields, nutritionForWeight, nutr
 
 export default function NutritionScreen() {
   const { t, language } = useLanguage();
-  const demo = useKitchenMode()?.demo;
   const confirmDelete = useConfirmDelete();
   const router = useRouter();
   const { data: { nutrition }, write } = useKitchen();
   const { run, busy } = useTask();
   const [day, setDay] = useState(localDay);
   const today = localDay();
+  const personal = nutrition.filter((entry) => !entry.starter);
+  const hasReference = nutrition.some((entry) => entry.starter);
   const daily = nutrition.filter((entry) => entry.day === day);
   const week = nutritionWeek(nutrition, day);
 
   function exportNutrition() {
-    const english = language === 'en';
-    const records = demo && english ? nutrition.map((entry) => ({ ...entry, name: englishFood(entry.name) })) : nutrition;
-    return shareNutrition(`NutriKitchen-${demo ? 'Demo-' : ''}${today}.csv`, nutritionCsv(records, english));
+    return shareNutrition(`NutriKitchen-${today}.csv`, nutritionCsv(personal, language === 'en'));
   }
 
   return (
     <Page title={t("营养记录")} headerAction={
       <Action label={t("记录食物")} icon="add" onPress={() => router.push({ pathname: '/nutrition/form', params: { day } })} />
     }>
+      {hasReference && <Body>{t('预置营养数据仅供参考，不会导出。记录自己的食物后，这些参考数据会自动清除。')}</Body>}
       <Row wrap>
         <Action label={t("前一天")} variant="quiet" icon="chevron-back" onPress={() => setDay(moveDay(day, -1))} />
         <DateField label={t("查看日期")} day={day} onChange={setDay} />
@@ -49,7 +48,8 @@ export default function NutritionScreen() {
         return (
           <Card key={entry.id}>
             <Row>
-              <View style={ui.grow}><Text style={ui.itemTitle}>{demo && language === 'en' ? englishFood(entry.name) : entry.name}</Text></View>
+              <View style={ui.grow}><Text style={ui.itemTitle}>{entry.starter && language === 'en' ? englishFood(entry.name) : entry.name}</Text></View>
+              {entry.starter && <Badge>{t('参考')}</Badge>}
               <Body>{formatNutrient(entry.grams)} {t("克")}</Body>
             </Row>
             <Body>{nutritionFields.map(({ key, label, unit }) => `${t(label)} ${formatNutrient(values[key])} ${t(unit)}`).join(' · ')}</Body>
@@ -76,7 +76,7 @@ export default function NutritionScreen() {
           </Row>
         ))}
       </Card>
-      <Action label={t("导出全部 CSV")} icon="share-outline" variant="quiet" disabled={busy || !nutrition.length}
+      <Action label={t("导出全部 CSV")} icon="share-outline" variant="quiet" disabled={busy || !personal.length}
         onPress={() => void run(exportNutrition)} />
     </Page>
   );

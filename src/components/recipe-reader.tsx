@@ -1,13 +1,13 @@
 import { useLanguage } from '../data/language';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState, type ReactNode } from 'react';
-import { Image, Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { formatAmount } from '../domain/inventory';
 import { presentRecipe, type CollectionRecipe } from '../domain/recipe-collection';
 import type { RecipeInput } from '../domain/recipes';
+import { PhotoViewer } from './photo-viewer';
 import { recipeCover } from './recipe-covers';
-import { Action, Body, Page, editorialFont, palette, ui, useTask } from './ui';
+import { Action, Body, Page, palette, ui, useTask } from './ui';
 
 export function RecipeReader({ recipe: input, collection, controls, footer }: {
   recipe: RecipeInput;
@@ -97,21 +97,7 @@ export function RecipeReader({ recipe: input, collection, controls, footer }: {
             <Image source={cover} resizeMode="contain" style={styles.cover} accessible={false} />
             <View style={styles.expand}><Ionicons name="expand-outline" color="#fff" size={20} accessible={false} /></View>
           </Pressable>
-          {preview && (
-            <Modal visible animationType="fade" onRequestClose={() => setPreview(false)}>
-              <SafeAreaView style={styles.viewer} accessibilityViewIsModal>
-                <View style={styles.viewerBar}>
-                  <Text style={styles.viewerTitle}>{recipe.title}</Text>
-                  <Pressable accessibilityRole="button" accessibilityLabel={t("关闭图片预览")} onPress={() => setPreview(false)}
-                    style={styles.viewerClose}>
-                    <Ionicons name="close" color="#fff" size={25} accessible={false} />
-                  </Pressable>
-                </View>
-                <Image accessibilityRole="image" accessibilityLabel={t("{0}完整图片", recipe.title)}
-                  source={cover} resizeMode="contain" style={styles.viewerImage} />
-              </SafeAreaView>
-            </Modal>
-          )}
+          {preview && <PhotoViewer photo={cover} title={recipe.title} onClose={() => setPreview(false)} />}
         </>
       )}
       <View style={styles.controls}>{controls}</View>
@@ -143,26 +129,21 @@ export function RecipeReader({ recipe: input, collection, controls, footer }: {
 
 const rule = StyleSheet.hairlineWidth;
 const styles = StyleSheet.create({
-  coverFrame: { backgroundColor: palette.soft, overflow: 'hidden', borderRadius: 14 },
-  cover: { width: '100%', height: undefined, aspectRatio: 4 / 5, maxHeight: 380 },
-  expand: { position: 'absolute', bottom: 10, right: 10, backgroundColor: '#292720C9', borderRadius: 18, padding: 8 },
-  viewer: { flex: 1, backgroundColor: '#171410', paddingHorizontal: 12 },
-  viewerBar: { flexDirection: 'row', alignItems: 'center', paddingLeft: 8, paddingVertical: 6, gap: 12 },
-  viewerTitle: { flex: 1, color: '#fff', fontWeight: '600', fontSize: 16 },
-  viewerClose: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
-  viewerImage: { flex: 1, width: '100%', minHeight: 0 },
+  coverFrame: { width: '100%', aspectRatio: 4 / 5, maxHeight: 380, backgroundColor: palette.soft, overflow: 'hidden', borderRadius: 14 },
+  cover: { width: '100%', height: '100%' },
+  expand: { position: 'absolute', bottom: 10, right: 10, backgroundColor: '#151515C9', borderRadius: 18, padding: 8 },
   source: { gap: 4, alignItems: 'flex-start' },
   meta: { fontSize: 14, lineHeight: 20, color: palette.muted },
   controls: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   secondaryControls: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingTop: 8, borderTopWidth: rule, borderColor: palette.line },
   sectionHeader: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 6, paddingBottom: 10, borderBottomWidth: rule, borderColor: palette.line },
-  sectionTitle: { fontFamily: editorialFont, color: palette.ink, fontSize: 25, fontWeight: '700' },
+  sectionTitle: { color: palette.ink, fontSize: 25, fontWeight: '700' },
   ingredient: { flexDirection: 'row', minHeight: 47, alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: rule, borderColor: palette.line },
   ingredientName: { flex: 1, color: palette.ink, fontSize: 16 },
   checked: { color: palette.muted, textDecorationLine: 'line-through' },
   pressed: { opacity: 0.5 },
   direction: { flexDirection: 'row', gap: 16, paddingVertical: 14, borderBottomWidth: rule, borderColor: palette.line },
-  number: { color: palette.accent, fontFamily: 'Georgia', fontSize: 17, lineHeight: 22 },
+  number: { color: palette.accent, fontSize: 17, lineHeight: 22 },
   stepPage: { padding: 20, gap: 18, backgroundColor: palette.surface, borderWidth: rule, borderColor: palette.line },
   stepCount: { fontSize: 15, fontWeight: '700', color: palette.accent },
   progress: { flexDirection: 'row', gap: 5 },

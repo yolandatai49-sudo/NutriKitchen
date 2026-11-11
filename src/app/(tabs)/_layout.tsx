@@ -4,9 +4,9 @@ import { Tabs } from 'expo-router';
 import type { ColorValue } from 'react-native';
 import { palette, type IconName } from '../../components/ui';
 
-function tabIcon(name: IconName) {
-  return function TabIcon({ color, size }: { color: ColorValue; size: number }) {
-    return <Ionicons name={name} color={typeof color === 'string' ? color : palette.muted} size={size} accessible={false} />;
+function tabIcon(active: IconName, idle: IconName) {
+  return function TabIcon({ color, size, focused }: { color: ColorValue; size: number; focused: boolean }) {
+    return <Ionicons name={focused ? active : idle} color={typeof color === 'string' ? color : palette.muted} size={size} accessible={false} />;
   };
 }
 
@@ -15,16 +15,16 @@ export default function TabLayout() {
   return (
     <Tabs screenOptions={{
       headerShown: false,
-      tabBarActiveTintColor: palette.accent,
+      tabBarActiveTintColor: palette.ink,
       tabBarInactiveTintColor: palette.muted,
       tabBarStyle: { backgroundColor: palette.surface, borderTopColor: palette.line },
       tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
     }}>
-      <Tabs.Screen name="index" options={{ title: t("菜谱"), tabBarIcon: tabIcon('book-outline') }} />
-      <Tabs.Screen name="menu" options={{ title: t("菜单"), tabBarIcon: tabIcon('restaurant-outline') }} />
-      <Tabs.Screen name="fridge" options={{ title: t("冰箱"), tabBarIcon: tabIcon('cube-outline') }} />
-      <Tabs.Screen name="shopping" options={{ title: t("购物"), tabBarIcon: tabIcon('basket-outline') }} />
-      <Tabs.Screen name="nutrition" options={{ title: t("营养"), tabBarIcon: tabIcon('nutrition-outline') }} />
+      <Tabs.Screen name="index" options={{ title: t('菜谱'), tabBarAccessibilityLabel: t('菜谱'), tabBarIcon: tabIcon('compass', 'compass-outline') }} />
+      <Tabs.Screen name="menu" options={{ title: t('菜单'), tabBarAccessibilityLabel: t('菜单'), tabBarIcon: tabIcon('restaurant', 'restaurant-outline') }} />
+      <Tabs.Screen name="fridge" options={{ title: t('冰箱'), tabBarAccessibilityLabel: t('冰箱'), tabBarIcon: tabIcon('cube', 'cube-outline') }} />
+      <Tabs.Screen name="shopping" options={{ title: t('购物'), tabBarAccessibilityLabel: t('购物'), tabBarIcon: tabIcon('basket', 'basket-outline') }} />
+      <Tabs.Screen name="nutrition" options={{ title: t('营养'), tabBarAccessibilityLabel: t('营养'), tabBarIcon: tabIcon('stats-chart', 'stats-chart-outline') }} />
     </Tabs>
   );
 }

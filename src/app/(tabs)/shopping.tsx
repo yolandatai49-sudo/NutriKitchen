@@ -1,5 +1,4 @@
 import { englishFood } from '../../domain/recipe-translations';
-import { useKitchenMode } from '../../data/kitchen-mode';
 import { useLanguage } from '../../data/language';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -15,7 +14,6 @@ import { adjustedShortages, isShortageChecked, shortageAmountKey, type ShoppingI
 export default function ShoppingScreen() {
   const { t } = useLanguage();
   const confirmDelete = useConfirmDelete();
-  const demo = useKitchenMode()?.demo;
   const router = useRouter();
   const { mealId } = useLocalSearchParams<{ mealId?: string }>();
   const { data: { meals, recipes, stock, shopping, shoppingChecks, shoppingAdjustments }, write } = useKitchen();
@@ -45,7 +43,7 @@ export default function ShoppingScreen() {
         <Heading>{t("菜单缺料")}</Heading>
         {meals.length ? (
           <Row wrap>
-            {meals.map((item) => <Chip key={item.id} label={`${demo ? t(item.name) : item.name} · ${item.day}`} selected={item.id === meal?.id}
+            {meals.map((item) => <Chip key={item.id} label={`${t(item.name)} · ${item.day}`} selected={item.id === meal?.id}
               onPress={() => router.setParams({ mealId: String(item.id) })} />)}
           </Row>
         ) : (

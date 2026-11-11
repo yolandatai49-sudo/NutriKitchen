@@ -4,9 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
-import { initializeDatabase, kitchenActions, loadKitchen, type KitchenDatabase } from '../src/data/repository.ts';
+import { initializeDatabase, initializeKitchen, kitchenActions, loadKitchen, type KitchenDatabase } from '../src/data/repository.ts';
 import { recipeCollection } from '../src/domain/recipe-collection.ts';
-import { initializeDemoKitchen } from '../src/data/demo-kitchen.ts';
 import { missingIngredients } from '../src/domain/inventory.ts';
 import { recipesForMeal } from '../src/domain/meals.ts';
 
@@ -259,31 +258,55 @@ test('imports each collection recipe once and preserves edits when it is importe
   }
 });
 
-test('opens a populated example kitchen independently from personal records', async () => {
-  const example = open(':memory:');
-  const personal = open(':memory:');
+test('adds linked starter records once and clears reference nutrition on the first real entry', async () => {
+  const { db, close } = open(':memory:');
+  const day = '2026-11-11';
   try {
-    await initializeDatabase(personal.db);
-    await kitchenActions(personal.db).addStock({ name: '菠菜', quantity: 120, unit: '克' });
-    const day = '2026-11-10';
-    await initializeDemoKitchen(example.db, day);
-    const demo = await loadKitchen(example.db);
-    assert.ok(demo.recipes.some(({ title, favorite }) => title === '阳春面' && favorite));
-    assert.equal(demo.meals.length, 3);
-    assert.ok(demo.shopping.some(({ checked }) => checked));
-    assert.ok(demo.shopping.some(({ checked }) => !checked));
-    const planned = demo.meals[0];
-    const dishes = recipesForMeal(planned, demo.recipes);
-    const shortages = missingIngredients(dishes.flatMap(({ ingredients }) => ingredients), demo.stock);
+    await initializeKitchen(db, day);
+    const initial = await loadKitchen(db);
+    assert.ok(initial.recipes.some(({ title, favorite }) => title === '阳春面' && favorite));
+    assert.equal(initial.meals.length, 2);
+    const planned = initial.meals[0];
+    const dishes = recipesForMeal(planned, initial.recipes);
+    const shortages = missingIngredients(dishes.flatMap(({ ingredients }) => ingredients), initial.stock);
     assert.equal(shortages.find(({ name }) => name === '黄牛肉')?.quantity, 150);
-    assert.ok(demo.shoppingChecks.some(({ mealId }) => mealId === planned.id));
-    assert.equal(new Set(demo.nutrition.map((entry) => entry.day)).size, 3);
-    assert.ok(demo.nutrition.some((entry) => entry.day === day && entry.name === '番茄炒蛋'));
-    await kitchenActions(example.db).addStock({ name: '酸奶', quantity: 1, unit: '盒' });
-    assert.deepEqual((await loadKitchen(personal.db)).stock.map(({ name }) => name), ['菠菜']);
-    assert.deepEqual((await loadKitchen(personal.db)).nutrition, []);
+    assert.ok(initial.shopping.some(({ checked }) => checked));
+    assert.ok(initial.shopping.some(({ checked }) => !checked));
+    assert.ok(initial.nutrition.every((entry) => entry.starter));
+    assert.equal(new Set(initial.nutrition.map((entry) => entry.day)).size, 3);
+
+    const actions = kitchenActions(db);
+    const saved = initial.nutrition[0];
+    await actions.saveNutritionEntry({ day, name: '我的燕麦', grams: 50, per100: { kcal: 380, protein: 12, carbs: 60, fat: 8 } }, saved.id);
+    await actions.deleteShoppingItem(initial.shopping[0].id);
+    await initializeKitchen(db, '2026-11-12');
+    const next = await loadKitchen(db);
+    assert.deepEqual(next.nutrition.map(({ name, starter }) => [name, starter]), [['我的燕麦', undefined]]);
+    assert.equal(next.nutrition[0].id, saved.id);
+    assert.equal(next.shopping.length, initial.shopping.length - 1);
+    assert.deepEqual(next.meals, initial.meals);
   } finally {
-    example.close();
-    personal.close();
+    close();
+  }
+});
+
+test('preserves existing personal sections when adding starter content to blank sections', async () => {
+  const { db, close } = open(':memory:');
+  try {
+    await initializeDatabase(db);
+    const day = '2026-11-11';
+    const actions = kitchenActions(db);
+    const recipe = recipeCollection[0].recipe;
+    const recipeId = await actions.saveRecipe({ ...recipe, title: '自己的炒蛋' });
+    await actions.saveMeal({ name: '我的晚饭', day, recipeIds: [recipeId] });
+    await actions.addStock({ name: '菠菜', quantity: 120, unit: '克' });
+    await actions.saveNutritionEntry({ day, name: '我的酸奶', grams: 120, per100: { kcal: 70, protein: 4, carbs: 6, fat: 3 } });
+    const before = await loadKitchen(db);
+    await initializeKitchen(db, day);
+    const after = await loadKitchen(db);
+    for (const key of ['recipes', 'meals', 'stock', 'nutrition'] as const) assert.deepEqual(after[key], before[key]);
+    assert.equal(after.shopping.length, 3);
+  } finally {
+    close();
   }
 });
