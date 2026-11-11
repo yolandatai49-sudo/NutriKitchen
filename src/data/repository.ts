@@ -78,6 +78,9 @@ const migrations = [`
     replacement TEXT,
     PRIMARY KEY (meal_id, ingredient_key)
   );
+`, `
+  ALTER TABLE recipes ADD COLUMN collection_key TEXT;
+  CREATE UNIQUE INDEX recipes_collection_key ON recipes(collection_key);
 `];
 
 export async function initializeDatabase(db: KitchenDatabase) {
@@ -113,7 +116,15 @@ type RecipeRow = {
   source_url: string | null;
   pending: number;
   favorite: number;
+  collection_key: string | null;
 };
+
+function recipeValues(input: RecipeInput) {
+  return [
+    input.title, input.category, JSON.stringify(input.ingredients),
+    JSON.stringify(input.steps), input.sourceUrl, Number(input.pending),
+  ];
+}
 
 export async function loadKitchen(db: KitchenDatabase) {
   const rows = await db.getAllAsync<RecipeRow>('SELECT * FROM recipes ORDER BY id DESC');
@@ -126,6 +137,7 @@ export async function loadKitchen(db: KitchenDatabase) {
     sourceUrl: row.source_url,
     pending: Boolean(row.pending),
     favorite: Boolean(row.favorite),
+    ...(row.collection_key === null ? {} : { collectionKey: row.collection_key }),
   }));
   const mealRows = await db.getAllAsync<Omit<MealPlan, 'recipeIds'>>('SELECT * FROM meals ORDER BY id DESC');
   const selections = await db.getAllAsync<{ meal_id: number; recipe_id: number }>(
@@ -165,10 +177,7 @@ export async function loadKitchen(db: KitchenDatabase) {
 export function kitchenActions(db: KitchenDatabase) {
   return {
     async saveRecipe(input: RecipeInput, id?: number) {
-      const params = [
-        input.title, input.category, JSON.stringify(input.ingredients),
-        JSON.stringify(input.steps), input.sourceUrl, Number(input.pending),
-      ];
+      const params = recipeValues(input);
       if (id !== undefined) {
         await db.runAsync(
           'UPDATE recipes SET title = ?, category = ?, ingredients = ?, steps = ?, source_url = ?, pending = ? WHERE id = ?',
@@ -181,6 +190,17 @@ export function kitchenActions(db: KitchenDatabase) {
         ...params,
       );
       return result.lastInsertRowId;
+    },
+    async importRecipe(input: RecipeInput, collectionKey: string) {
+      const row = await db.getFirstAsync<{ id: number }>(
+        `INSERT INTO recipes (title, category, ingredients, steps, source_url, pending, collection_key)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(collection_key) DO UPDATE SET collection_key = excluded.collection_key
+         RETURNING id`,
+        ...recipeValues(input), collectionKey,
+      );
+      if (!row) throw new Error('无法收入菜谱，请重试。');
+      return row.id;
     },
     async setFavorite(id: number, favorite: boolean) {
       await db.runAsync('UPDATE recipes SET favorite = ? WHERE id = ?', Number(favorite), id);

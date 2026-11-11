@@ -8,6 +8,7 @@ import FridgeScreen from '../../src/app/(tabs)/fridge';
 import ShoppingScreen from '../../src/app/(tabs)/shopping';
 import NutritionScreen from '../../src/app/(tabs)/nutrition';
 import RecipeForm from '../../src/app/recipes/form';
+import CollectionRecipeScreen from '../../src/app/recipes/collection/[key]';
 import MealForm from '../../src/app/meals/form';
 import NutritionForm from '../../src/app/nutrition/form';
 import { useKitchen } from '../../src/data/kitchen';
@@ -20,6 +21,7 @@ let data: KitchenData;
 const router = { push: jest.fn(), replace: jest.fn(), navigate: jest.fn(), back: jest.fn(), setParams: jest.fn() };
 const actions = {
   saveRecipe: jest.fn<KitchenActions['saveRecipe']>(),
+  importRecipe: jest.fn<KitchenActions['importRecipe']>(),
   saveMeal: jest.fn<KitchenActions['saveMeal']>(),
   addStock: jest.fn<KitchenActions['addStock']>(),
   saveShoppingItem: jest.fn<KitchenActions['saveShoppingItem']>(),
@@ -31,6 +33,7 @@ const actions = {
 beforeEach(() => {
   jest.clearAllMocks();
   actions.saveRecipe.mockResolvedValue(1);
+  actions.importRecipe.mockResolvedValue(2);
   actions.saveMeal.mockResolvedValue(1);
   actions.addStock.mockResolvedValue(undefined);
   actions.saveShoppingItem.mockResolvedValue(undefined);
@@ -47,7 +50,7 @@ beforeEach(() => {
 });
 
 test.each([
-  [RecipesScreen, '还没有菜谱'],
+  [RecipesScreen, '家常菜谱'],
   [MenuScreen, '还没有菜单'],
   [FridgeScreen, '冰箱还没有食材'],
   [ShoppingScreen, '没有手动项目'],
@@ -55,6 +58,45 @@ test.each([
 ] as const)('renders a native screen with empty local data', async (Screen, expected) => {
   const screen = await render(<Screen />);
   expect(screen.getByText(expected)).toBeTruthy();
+});
+
+test('turns to the next recipe and opens its preview from the cookbook', async () => {
+  const screen = await render(<RecipesScreen />);
+  await fireEvent.press(screen.getByRole('button', { name: '下一道菜' }));
+  expect(screen.getByLabelText('第 2 道，共 4 道')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: '查看葱油拌面' }));
+  expect(router.push).toHaveBeenCalledWith({
+    pathname: '/recipes/collection/[key]', params: { key: 'scallion-noodles' },
+  });
+  await fireEvent.press(screen.getByRole('tab', { name: '我的菜谱' }));
+  expect(screen.getByText('还没有菜谱')).toBeTruthy();
+});
+
+test('adds a suggested recipe to the local library only after the save action', async () => {
+  jest.mocked(useLocalSearchParams).mockReturnValue({ key: 'tomato-eggs' });
+  const screen = await render(<CollectionRecipeScreen />);
+  expect(actions.importRecipe).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole('button', { name: '收入我的菜谱' }));
+  expect(actions.importRecipe).toHaveBeenCalledWith(expect.objectContaining({
+    title: '番茄炒蛋', pending: false,
+  }), 'tomato-eggs');
+  expect(router.replace).toHaveBeenCalledWith({ pathname: '/recipes/[id]', params: { id: '2' } });
+});
+
+test('keeps the preparation checklist while moving through cooking steps', async () => {
+  jest.mocked(useLocalSearchParams).mockReturnValue({ key: 'tomato-eggs' });
+  const screen = await render(<CollectionRecipeScreen />);
+  await fireEvent.press(screen.getByRole('checkbox', { name: '番茄，300 克' }));
+  await fireEvent.press(screen.getByRole('button', { name: '开始做菜' }));
+  expect(screen.getByText('第 1 步 / 共 4 步')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: '下一步' }));
+  expect(screen.getByText('第 2 步 / 共 4 步')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: '查看食材' }));
+  expect(screen.getByRole('checkbox', { name: '番茄，300 克', checked: true })).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: '上一步' }));
+  expect(screen.getByText('第 1 步 / 共 4 步')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: '返回菜谱' }));
+  expect(screen.getByRole('button', { name: '开始做菜' })).toBeTruthy();
 });
 
 test('submits a link-only recipe as a pending item from the form', async () => {

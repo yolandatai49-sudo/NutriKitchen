@@ -9,7 +9,7 @@ export type RecipeInput = {
   pending: boolean;
 };
 
-export type Recipe = RecipeInput & { id: number; favorite: boolean };
+export type Recipe = RecipeInput & { id: number; favorite: boolean; collectionKey?: string };
 
 export type IngredientDraft = { name: string; quantity: string; unit: string };
 
@@ -78,6 +78,14 @@ export function buildRecipe(draft: {
   };
 }
 
+export function matchesRecipeSearch(recipe: RecipeInput, terms: readonly string[]): boolean {
+  if (terms.length === 0) return true;
+  const searchable = normalizeName(
+    [recipe.title, recipe.category, ...recipe.ingredients.map(({ name }) => name)].join(' '),
+  );
+  return terms.every((term) => searchable.includes(term));
+}
+
 export function filterRecipes(
   recipes: readonly Recipe[],
   query: string,
@@ -88,9 +96,6 @@ export function filterRecipes(
   return recipes.filter((recipe) => {
     if (category !== null && recipe.category !== category) return false;
     if (favoritesOnly && !recipe.favorite) return false;
-    const searchable = normalizeName(
-      [recipe.title, recipe.category, ...recipe.ingredients.map(({ name }) => name)].join(' '),
-    );
-    return terms.every((term) => searchable.includes(term));
+    return matchesRecipeSearch(recipe, terms);
   });
 }

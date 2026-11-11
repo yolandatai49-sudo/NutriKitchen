@@ -2,24 +2,26 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps, ReactNode } from 'react';
 import { useRef, useState } from 'react';
 import {
-  Alert, Pressable, ScrollView, StyleSheet,
+  Alert, Platform, Pressable, ScrollView, StyleSheet,
   Text, TextInput, View, type TextInputProps,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export const palette = {
-  background: '#F6F3EB',
-  surface: '#FFFEFA',
-  ink: '#232D25',
-  muted: '#556358',
-  line: '#DEDCD0',
-  accent: '#315C45',
-  soft: '#E4EDDF',
+  background: '#F6F0E5',
+  surface: '#FFFCF5',
+  ink: '#292720',
+  muted: '#665B50',
+  line: '#D9CABB',
+  accent: '#9B372B',
+  soft: '#EFE0D1',
   onAccent: '#FFFFFF',
   orange: '#92511F',
   orangeSoft: '#F7E8D5',
   danger: '#983D36',
 };
+
+export const editorialFont = Platform.select({ ios: 'Songti SC', default: 'serif' });
 
 export type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -163,27 +165,27 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 28 },
   content: { gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' },
   pageHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 4 },
-  title: { fontSize: 34, fontWeight: '800', letterSpacing: -0.7, color: palette.ink, marginBottom: 5 },
+  title: { fontFamily: editorialFont, fontSize: 34, fontWeight: '700', letterSpacing: -0.7, color: palette.ink, marginBottom: 5 },
   heading: { fontSize: 19, fontWeight: '700', color: palette.ink },
   body: { fontSize: 15, lineHeight: 22, color: palette.muted },
-  card: { borderRadius: 19, borderWidth: 1, borderColor: palette.line, padding: 16, gap: 12, backgroundColor: palette.surface },
+  card: { borderRadius: 4, borderWidth: 1, borderColor: palette.line, padding: 16, gap: 12, backgroundColor: palette.surface },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   wrap: { flexWrap: 'wrap' },
   badge: { color: palette.accent, backgroundColor: palette.soft, fontSize: 12, fontWeight: '700', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 9, overflow: 'hidden', maxWidth: '100%', flexShrink: 1 },
   warmBadge: { color: palette.orange, backgroundColor: palette.orangeSoft },
-  action: { minHeight: 44, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
+  action: { minHeight: 44, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 4, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
   primary: { backgroundColor: palette.accent },
   quiet: { backgroundColor: palette.soft },
   actionText: { flexShrink: 1, fontSize: 15, fontWeight: '700', textAlign: 'center' },
   dim: { opacity: 0.6 },
-  chip: { borderColor: palette.line, borderWidth: 1, backgroundColor: palette.surface, borderRadius: 20, paddingHorizontal: 13, paddingVertical: 9, minHeight: 42, justifyContent: 'center' },
+  chip: { borderColor: palette.line, borderWidth: 1, backgroundColor: palette.surface, borderRadius: 4, paddingHorizontal: 13, paddingVertical: 9, minHeight: 44, justifyContent: 'center' },
   selectedChip: { backgroundColor: palette.accent, borderColor: palette.accent },
   chipText: { fontSize: 14, fontWeight: '600', color: palette.ink },
   selectedChipText: { color: palette.onAccent },
   field: { gap: 6 },
   fieldLabel: { color: palette.ink, fontSize: 14, fontWeight: '700' },
-  input: { borderWidth: 1, borderColor: palette.line, backgroundColor: palette.surface, borderRadius: 11, paddingHorizontal: 12, paddingVertical: 10, minHeight: 46, color: palette.ink, fontSize: 16 },
+  input: { borderWidth: 1, borderColor: palette.line, backgroundColor: palette.surface, borderRadius: 4, paddingHorizontal: 12, paddingVertical: 10, minHeight: 46, color: palette.ink, fontSize: 16 },
   multiline: { minHeight: 100, textAlignVertical: 'top' },
-  empty: { gap: 7, padding: 20, backgroundColor: palette.surface, borderColor: palette.line, borderWidth: 1, borderRadius: 18 },
-  emptyIcon: { backgroundColor: palette.soft, width: 46, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 5 },
+  empty: { gap: 7, padding: 20, backgroundColor: palette.surface, borderColor: palette.line, borderWidth: 1, borderRadius: 4 },
+  emptyIcon: { backgroundColor: palette.soft, width: 46, height: 46, borderRadius: 4, alignItems: 'center', justifyContent: 'center', marginBottom: 5 },
 });

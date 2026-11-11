@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
 import { initializeDatabase, kitchenActions, loadKitchen, type KitchenDatabase } from '../src/data/repository.ts';
+import { recipeCollection } from '../src/domain/recipe-collection.ts';
 
 function open(path: string) {
   const native = new DatabaseSync(path);
@@ -221,5 +222,36 @@ test('preserves the complete kitchen state after closing and reopening the datab
   } finally {
     connection.close();
     rmSync(folder, { recursive: true, force: true });
+  }
+});
+
+test('imports each collection recipe once and preserves edits when it is imported again', async () => {
+  const { db, close } = open(':memory:');
+  try {
+    await initializeDatabase(db);
+    const actions = kitchenActions(db);
+    const { key, recipe } = recipeCollection[0];
+    const originalId = await actions.saveRecipe(recipe);
+    const [first, second] = await Promise.all([
+      actions.importRecipe(recipe, key),
+      actions.importRecipe(recipe, key),
+    ]);
+    assert.equal(first, second);
+    assert.notEqual(first, originalId);
+
+    await actions.saveRecipe({ ...recipe, title: '我的番茄炒蛋' }, first);
+    await actions.setFavorite(first, true);
+    assert.equal(await actions.importRecipe(recipe, key), first);
+    const { recipes } = await loadKitchen(db);
+    assert.equal(recipes.length, 2);
+    assert.deepEqual(recipes.find(({ id }) => id === first), {
+      ...recipe, id: first, title: '我的番茄炒蛋', favorite: true, collectionKey: key,
+    });
+
+    await actions.deleteRecipe(first);
+    assert.notEqual(await actions.importRecipe(recipe, key), first);
+    assert.equal((await loadKitchen(db)).recipes.length, 2);
+  } finally {
+    close();
   }
 });
