@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { Image, Modal, PanResponder, Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLanguage } from '../data/language';
-import type { IconName } from './ui';
+import { typeStyles, type IconName } from './ui';
 
 export function PhotoViewer({ photo, title, caption, position, onClose, onPrevious, onNext, onRecipe }: {
   photo: ImageSourcePropType;
@@ -79,9 +79,9 @@ const styles = StyleSheet.create({
   image: { width: '100%', height: '100%' },
   footer: { gap: 10, paddingTop: 12, paddingBottom: 8, width: '100%', maxWidth: 510, alignSelf: 'center' },
   metadata: { gap: 4, alignItems: 'center', paddingHorizontal: 12 },
-  title: { textAlign: 'center', color: '#fff', fontSize: 21, fontWeight: '700' },
+  title: { ...typeStyles.section, textAlign: 'center', color: '#fff' },
   caption: { textAlign: 'center', color: '#ccc', fontSize: 13 },
   actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   recipe: { borderRadius: 24, minHeight: 44, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-  recipeText: { color: '#141415', fontSize: 15, fontWeight: '700' },
+  recipeText: { ...typeStyles.label, color: '#141415' },
 });

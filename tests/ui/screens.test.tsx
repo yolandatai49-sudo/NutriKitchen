@@ -13,6 +13,8 @@ import MealForm from '../../src/app/meals/form';
 import NutritionForm from '../../src/app/nutrition/form';
 import { LanguageProvider } from '../../src/data/language';
 import { useKitchen } from '../../src/data/kitchen';
+import { localDay } from '../../src/domain/dates';
+import { nutritionWeek } from '../../src/domain/nutrition';
 import type { KitchenActions, KitchenData } from '../../src/data/repository';
 
 jest.mock('expo-router', () => ({ useRouter: jest.fn(), useLocalSearchParams: jest.fn() }));
@@ -170,6 +172,33 @@ test('adds a fridge item from the native form', async () => {
   await fireEvent.changeText(screen.getByLabelText('单位'), '克');
   await fireEvent.press(screen.getByRole('button', { name: '存入冰箱' }));
   expect(actions.addStock).toHaveBeenCalledWith({ name: '番茄', quantity: 200, unit: '克' });
+});
+
+test('switches from stock to matching recipes without scrolling past inventory', async () => {
+  data.stock.push({ id: 1, name: '番茄', quantity: 200, unit: '克' });
+  data.recipes.push({
+    id: 1, title: '番茄汤', category: '汤', ingredients: [{ name: '番茄', quantity: 100, unit: '克' }],
+    steps: [], sourceUrl: null, pending: false, favorite: false,
+  });
+  const screen = await render(<FridgeScreen />);
+  expect(screen.getByText('番茄')).toBeTruthy();
+  expect(screen.queryByText('番茄汤')).toBeNull();
+  await fireEvent.press(screen.getByRole('tab', { name: '菜谱匹配' }));
+  expect(screen.getByText('番茄汤')).toBeTruthy();
+  expect(screen.getByText('已录入食材齐全')).toBeTruthy();
+  expect(screen.queryByText('番茄')).toBeNull();
+});
+
+test('opens a day from the weekly nutrition summary', async () => {
+  const today = localDay();
+  const selected = nutritionWeek([], today).days.find(({ date }) => date !== today)!.date;
+  data.nutrition.push({
+    id: 1, day: selected, name: '原味酸奶', grams: 150, per100: { kcal: 70, protein: 4, carbs: 6, fat: 3 },
+  });
+  const screen = await render(<NutritionScreen />);
+  expect(screen.queryByText('原味酸奶')).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: `查看 ${selected} 的记录` }));
+  expect(screen.getByText('原味酸奶')).toBeTruthy();
 });
 
 test('shows aggregated menu shortages after fridge subtraction and stores their checked state', async () => {

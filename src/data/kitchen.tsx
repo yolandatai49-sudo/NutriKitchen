@@ -1,3 +1,4 @@
+import { appName } from '../domain/brand';
 import { useLanguage } from './language';
 import { useSQLiteContext } from 'expo-sqlite';
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -47,7 +48,7 @@ export function KitchenProvider({ children }: { children: ReactNode }) {
 
   if (!data) {
     return (
-      <Page title={t("今天吃什么")}>
+      <Page title={appName}>
         {failed ? (
           <>
             <Empty icon="warning-outline" title={t("无法读取本地数据")} description={t("请重试读取数据库。")} />

@@ -7,7 +7,7 @@ import { presentRecipe, type CollectionRecipe } from '../domain/recipe-collectio
 import type { RecipeInput } from '../domain/recipes';
 import { PhotoViewer } from './photo-viewer';
 import { recipeCover } from './recipe-covers';
-import { Action, Body, Page, palette, ui, useTask } from './ui';
+import { Action, Body, Page, palette, typeStyles, ui, useTask } from './ui';
 
 export function RecipeReader({ recipe: input, collection, controls, footer }: {
   recipe: RecipeInput;
@@ -129,25 +129,25 @@ export function RecipeReader({ recipe: input, collection, controls, footer }: {
 
 const rule = StyleSheet.hairlineWidth;
 const styles = StyleSheet.create({
-  coverFrame: { width: '100%', aspectRatio: 4 / 5, maxHeight: 380, backgroundColor: palette.soft, overflow: 'hidden', borderRadius: 14 },
+  coverFrame: { width: '100%', aspectRatio: 4 / 5, maxHeight: 380, backgroundColor: palette.soft, overflow: 'hidden', borderRadius: 6 },
   cover: { width: '100%', height: '100%' },
   expand: { position: 'absolute', bottom: 10, right: 10, backgroundColor: '#151515C9', borderRadius: 18, padding: 8 },
   source: { gap: 4, alignItems: 'flex-start' },
-  meta: { fontSize: 14, lineHeight: 20, color: palette.muted },
+  meta: typeStyles.caption,
   controls: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   secondaryControls: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingTop: 8, borderTopWidth: rule, borderColor: palette.line },
   sectionHeader: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 6, paddingBottom: 10, borderBottomWidth: rule, borderColor: palette.line },
-  sectionTitle: { color: palette.ink, fontSize: 25, fontWeight: '700' },
+  sectionTitle: typeStyles.section,
   ingredient: { flexDirection: 'row', minHeight: 47, alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: rule, borderColor: palette.line },
-  ingredientName: { flex: 1, color: palette.ink, fontSize: 16 },
+  ingredientName: { ...typeStyles.label, flex: 1, fontWeight: '400' },
   checked: { color: palette.muted, textDecorationLine: 'line-through' },
   pressed: { opacity: 0.5 },
   direction: { flexDirection: 'row', gap: 16, paddingVertical: 14, borderBottomWidth: rule, borderColor: palette.line },
-  number: { color: palette.accent, fontSize: 17, lineHeight: 22 },
+  number: { ...typeStyles.amount, color: palette.accent },
   stepPage: { padding: 20, gap: 18, backgroundColor: palette.surface, borderWidth: rule, borderColor: palette.line },
   stepCount: { fontSize: 15, fontWeight: '700', color: palette.accent },
   progress: { flexDirection: 'row', gap: 5 },
   progressSegment: { flex: 1, height: 3, backgroundColor: palette.line },
   progressFilled: { backgroundColor: palette.accent },
-  currentStep: { color: palette.ink, fontSize: 26, lineHeight: 41, paddingBottom: 20 },
+  currentStep: { color: palette.ink, fontSize: 22, lineHeight: 34, paddingBottom: 20 },
 });

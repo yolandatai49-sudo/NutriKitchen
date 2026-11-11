@@ -1,3 +1,4 @@
+import { appName } from '../../domain/brand';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -5,7 +6,8 @@ import { Image, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, us
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PhotoViewer } from '../../components/photo-viewer';
 import { recipeCover } from '../../components/recipe-covers';
-import { Action, Body, palette, ui, useTask, type IconName } from '../../components/ui';
+import { Action, Body, palette, typeStyles, ui, useTask, type IconName } from '../../components/ui';
+import { sidebarWidth, useDesktopLayout } from '../../components/workspace-layout';
 import { useKitchen } from '../../data/kitchen';
 import { useLanguage } from '../../data/language';
 import { categoryEnglish, localizeCollection, presentSavedRecipe, recipeCollection, type CollectionRecipe } from '../../domain/recipe-collection';
@@ -19,6 +21,9 @@ export default function RecipesScreen() {
   const { data: { recipes }, write } = useKitchen();
   const { busy, run } = useTask();
   const { width } = useWindowDimensions();
+  const desktop = useDesktopLayout();
+  const columns = width - (desktop ? sidebarWidth : 0) >= 1040 ? 4 : width - (desktop ? sidebarWidth : 0) >= 680 ? 3 : 2;
+  const contentStyle = [styles.content, desktop && styles.desktopContent];
   const english = language === 'en';
   const [shelf, setShelf] = useState<'browse' | 'mine'>('browse');
   const [showLanguage, setShowLanguage] = useState(false);
@@ -61,33 +66,45 @@ export default function RecipesScreen() {
     if (original) void run(() => write((actions) => actions.importRecipe(original.recipe, key)));
   }
 
+  const search = (
+    <View style={[styles.search, desktop && styles.desktopSearch]}>
+      <Ionicons name="search-outline" size={17} color={palette.muted} accessible={false} />
+      <TextInput accessibilityLabel={t('搜索菜谱')} placeholder={t('菜名、分类或食材')} placeholderTextColor={palette.muted}
+        value={query} onChangeText={setQuery} returnKeyType="search" style={styles.searchField} />
+      {!!query && <IconButton label={t('清空搜索')} icon="close-circle" onPress={() => { setQuery(''); Keyboard.dismiss(); }} />}
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <View style={[styles.content, styles.masthead]}>
-          <View style={styles.brand}>
-            <View style={styles.mark}><Ionicons name="restaurant" size={17} color="#fff" accessible={false} /></View>
-            <Text accessibilityRole="header" numberOfLines={1} style={styles.wordmark}>{t('今天吃什么')}</Text>
-          </View>
+        <View style={[contentStyle, styles.masthead, desktop && styles.desktopMasthead]}>
+          <Text accessibilityRole="header" numberOfLines={1} style={desktop ? typeStyles.title : styles.wordmark}>
+            {desktop ? t('菜谱') : appName}
+          </Text>
           <View style={styles.tools}>
-            {setLanguage && <IconButton label={t('语言')} icon="globe-outline" selected={showLanguage}
-              onPress={() => setShowLanguage(!showLanguage)} />}
-            <IconButton label={t('新增菜谱')} icon="add-circle-outline" onPress={() => router.push('/recipes/form')} />
+            {desktop ? (
+              <>
+                {search}
+                <Action label={t('新增菜谱')} icon="add" onPress={() => router.push('/recipes/form')} />
+              </>
+            ) : (
+              <>
+                {setLanguage && <IconButton label={t('语言')} icon="globe-outline" selected={showLanguage}
+                  onPress={() => setShowLanguage(!showLanguage)} />}
+                <IconButton label={t('新增菜谱')} icon="add" onPress={() => router.push('/recipes/form')} />
+              </>
+            )}
           </View>
         </View>
-        {showLanguage && setLanguage && (
-          <View style={[styles.content, styles.language]}>
+        {!desktop && showLanguage && setLanguage && (
+          <View style={[contentStyle, styles.language]}>
             <Filter label="中文" selected={!english} onPress={() => { setLanguage('zh'); setShowLanguage(false); }} />
             <Filter label="English" selected={english} onPress={() => { setLanguage('en'); setShowLanguage(false); }} />
           </View>
         )}
-        <View style={[styles.content, styles.search]}>
-          <Ionicons name="search-outline" size={18} color={palette.muted} accessible={false} />
-          <TextInput accessibilityLabel={t('搜索菜谱')} placeholder={t('菜名、分类或食材')} placeholderTextColor={palette.muted}
-            value={query} onChangeText={setQuery} returnKeyType="search" style={styles.searchField} />
-          {!!query && <IconButton label={t('清空搜索')} icon="close-circle" onPress={() => { setQuery(''); Keyboard.dismiss(); }} />}
-        </View>
-        <View style={[styles.content, styles.tabs]}>
+        {!desktop && <View style={contentStyle}>{search}</View>}
+        <View style={[contentStyle, styles.tabs]}>
           <Tab label={t('找灵感')} selected={shelf === 'browse'} onPress={() => setShelf('browse')} />
           <Tab label={t('我的菜谱')} selected={shelf === 'mine'} onPress={() => setShelf('mine')} />
         </View>
@@ -95,7 +112,7 @@ export default function RecipesScreen() {
 
       <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
         automaticallyAdjustKeyboardInsets>
-        <View style={styles.content}>
+        <View style={contentStyle}>
           {shelf === 'browse' ? (
             <>
               <View style={styles.filters}>
@@ -113,7 +130,7 @@ export default function RecipesScreen() {
                 )}
               </View>
               {suggestions.length > 0 ? (
-                <RecipeGallery items={suggestions} wide={width >= 850} savedRecipes={savedRecipes} busy={busy}
+                <RecipeGallery items={suggestions} columns={columns} savedRecipes={savedRecipes} busy={busy}
                   onOpen={openSuggestion} onBookmark={bookmark} />
               ) : <View style={styles.empty}><Body>{t('没有找到符合条件的菜谱。')}</Body></View>}
             </>
@@ -175,9 +192,9 @@ export default function RecipesScreen() {
   );
 }
 
-function RecipeGallery({ items, wide, savedRecipes, busy, onOpen, onBookmark }: {
+function RecipeGallery({ items, columns, savedRecipes, busy, onOpen, onBookmark }: {
   items: readonly CollectionRecipe[];
-  wide: boolean;
+  columns: 2 | 3 | 4;
   savedRecipes: ReadonlyMap<string, number>;
   busy: boolean;
   onOpen: (key: string) => void;
@@ -189,17 +206,18 @@ function RecipeGallery({ items, wide, savedRecipes, busy, onOpen, onBookmark }: 
       {items.map((item) => {
         const saved = savedRecipes.has(item.key);
         return (
-          <View key={item.key} style={[styles.tile, wide && styles.wideTile]}>
+          <View key={item.key} style={[styles.tile, columns === 3 && styles.thirdTile, columns === 4 && styles.quarterTile]}>
             <Pressable accessibilityRole="button" accessibilityLabel={t('查看{0}', item.recipe.title)}
-              onPress={() => onOpen(item.key)} style={({ pressed }) => [styles.photoFrame, pressed && styles.pressed]}>
-              <Image source={recipeCover(item.key)} style={styles.photo} resizeMode="contain" accessible={false} />
-            </Pressable>
-            <View style={styles.coverCaption}>
-              <Pressable accessibilityRole="button" accessibilityLabel={t('查看{0}的做法', item.recipe.title)}
-                onPress={() => onOpen(item.key)} style={ui.grow}>
+              onPress={() => onOpen(item.key)} style={({ pressed }) => pressed && styles.pressed}>
+              <View style={styles.photoFrame}>
+                <Image source={recipeCover(item.key)} style={styles.photo} resizeMode="contain" accessible={false} />
+              </View>
+              <View style={styles.coverCaption}>
                 <Text numberOfLines={2} style={styles.coverTitle}>{item.recipe.title}</Text>
                 <Text numberOfLines={1} style={styles.caption}>{item.recipe.category} · {item.minutes} {t('分钟')}</Text>
-              </Pressable>
+              </View>
+            </Pressable>
+            <View style={styles.bookmark}>
               <IconButton label={t(saved ? '打开已收录的{0}' : '收录{0}', item.recipe.title)}
                 icon={saved ? 'bookmark' : 'bookmark-outline'} selected={saved}
                 disabled={busy && !saved} onPress={() => onBookmark(item.key)} />
@@ -245,40 +263,42 @@ const rule = StyleSheet.hairlineWidth;
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: palette.background },
   header: { borderBottomWidth: rule, borderBottomColor: palette.line, backgroundColor: palette.surface },
-  content: { width: '100%', maxWidth: 948, alignSelf: 'center', paddingHorizontal: 15 },
-  masthead: { minHeight: 54, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 5 },
-  brand: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  mark: { width: 31, height: 31, borderRadius: 10, backgroundColor: palette.accent, alignItems: 'center', justifyContent: 'center' },
-  wordmark: { flexShrink: 1, color: palette.ink, fontWeight: '800', fontSize: 23, letterSpacing: -0.7 },
-  tools: { flexDirection: 'row', alignItems: 'center' },
+  content: { width: '100%', maxWidth: 800, alignSelf: 'center', paddingHorizontal: 16 },
+  desktopContent: { maxWidth: 1180, alignSelf: 'flex-start', paddingHorizontal: 36 },
+  masthead: { minHeight: 51, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 5 },
+  desktopMasthead: { minHeight: 77 },
+  wordmark: { ...typeStyles.section, flexShrink: 1, fontSize: 18 },
+  tools: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.6 },
   language: { flexDirection: 'row', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 6, paddingBottom: 6 },
-  search: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 8, width: '92%', maxWidth: 918,
-    backgroundColor: palette.soft, borderRadius: 11 },
-  searchField: { flex: 1, minHeight: 44, color: palette.ink, fontSize: 15, outlineColor: palette.accent },
-  tabs: { flexDirection: 'row', gap: 26 },
-  tab: { minHeight: 48, justifyContent: 'center', borderBottomWidth: 3, borderColor: 'transparent' },
+  search: { flexDirection: 'row', alignItems: 'center', paddingLeft: 11, gap: 7, backgroundColor: palette.soft, borderRadius: 6 },
+  desktopSearch: { width: 255, marginRight: 6 },
+  searchField: { ...typeStyles.label, fontWeight: '400', flex: 1, minWidth: 0, minHeight: 43, outlineColor: palette.accent },
+  tabs: { flexDirection: 'row', gap: 23 },
+  tab: { minHeight: 48, justifyContent: 'center', borderBottomWidth: 2, borderColor: 'transparent' },
   activeTab: { borderColor: palette.accent },
-  tabText: { fontSize: 16, color: palette.muted, fontWeight: '500' },
-  activeTabText: { color: palette.ink, fontWeight: '800' },
+  tabText: { ...typeStyles.body, fontSize: 14 },
+  activeTabText: { color: palette.ink, fontWeight: '600' },
   page: { paddingTop: 10, paddingBottom: 26 },
   filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  filter: { minHeight: 44, paddingHorizontal: 13, borderRadius: 20, justifyContent: 'center', backgroundColor: palette.soft },
-  selectedFilter: { backgroundColor: palette.ink },
-  filterText: { color: palette.ink, fontSize: 14, fontWeight: '600' },
-  selectedFilterText: { color: '#fff' },
+  filter: { minHeight: 40, paddingHorizontal: 11, borderRadius: 5, justifyContent: 'center' },
+  selectedFilter: { backgroundColor: palette.soft },
+  filterText: { ...typeStyles.body, fontSize: 14 },
+  selectedFilterText: { color: palette.ink, fontWeight: '500' },
   indexHeader: { flexDirection: 'row', minHeight: 44, justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  caption: { color: palette.muted, fontSize: 12, lineHeight: 18 },
+  caption: typeStyles.caption,
   photoMode: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  photoModeText: { color: palette.ink, fontSize: 13, fontWeight: '700' },
+  photoModeText: { ...typeStyles.label, fontSize: 13 },
   gallery: { flexDirection: 'row', flexWrap: 'wrap', columnGap: '1.8%', rowGap: 16 },
-  tile: { width: '49%', gap: 4 },
-  wideTile: { width: '32%' },
-  photoFrame: { width: '100%', aspectRatio: 4 / 5, borderRadius: 9, overflow: 'hidden', backgroundColor: palette.soft },
+  tile: { width: '49%' },
+  thirdTile: { width: '32%' },
+  quarterTile: { width: '23.6%' },
+  photoFrame: { width: '100%', aspectRatio: 4 / 5, borderRadius: 6, overflow: 'hidden', backgroundColor: palette.soft },
   photo: { width: '100%', height: '100%' },
-  coverCaption: { flexDirection: 'row', alignItems: 'center', paddingLeft: 1 },
-  coverTitle: { color: palette.ink, fontSize: 16, fontWeight: '700', lineHeight: 21 },
+  coverCaption: { paddingTop: 7, paddingLeft: 1, paddingRight: 45, minHeight: 52 },
+  coverTitle: typeStyles.label,
+  bookmark: { position: 'absolute', bottom: 4, right: 0 },
   indexRow: { minHeight: 70, paddingVertical: 9, gap: 12, flexDirection: 'row', alignItems: 'center',
     borderBottomWidth: rule, borderColor: palette.line },
   thumb: { width: 48, height: 56, borderRadius: 6, backgroundColor: palette.soft },

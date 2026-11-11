@@ -1,7 +1,7 @@
 export type Language = 'zh' | 'en';
 
 const english: Record<string, string> = {
-  '今天吃什么': 'NutriKitchen', '菜谱': 'Recipes', '菜单': 'Meals', '冰箱': 'Fridge', '购物': 'Shopping', '营养': 'Nutrition',
+  '菜谱': 'Recipes', '菜单': 'Meals', '冰箱': 'Fridge', '购物': 'Shopping', '营养': 'Nutrition',
   '无法打开厨房': 'Could not open the kitchen', '本地数据库暂时无法打开。': 'The local database could not be opened.',
   '重试': 'Try again', '菜谱详情': 'Recipe', '家常菜谱': 'Home cooking', '菜谱编辑': 'Edit recipe',
   '选菜': 'Choose dishes', '营养编辑': 'Edit nutrition', '我的冰箱': 'My fridge', '{0} 条库存记录': '{0} items in stock',
@@ -79,6 +79,9 @@ const english: Record<string, string> = {
   '无法读取本地数据': 'Could not read local data', '请重试读取数据库。': 'Try opening your local kitchen again.',
   '正在读取本地数据': 'Loading local data', '按需': 'As needed', '语言': 'Language',
   '工作日午饭': 'Weekday lunch', '两人家常晚餐': 'Dinner for two',
+  '当天记录': 'Food for this day', '查看 {0} 的记录': 'View entries for {0}',
+  '编辑餐单「{0}」': 'Edit meal “{0}”',
+  '厨房导航': 'Kitchen navigation', '库存': 'In stock',
   '清空搜索': 'Clear search', '看大图': 'View photos', '查看做法': 'View recipe',
   '上一道菜': 'Previous dish', '下一道菜': 'Next dish',
   '查看{0}的做法': 'Open recipe for {0}', '收录{0}': 'Save {0}', '打开已收录的{0}': 'Open saved {0}',

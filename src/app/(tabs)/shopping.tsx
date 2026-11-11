@@ -4,7 +4,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Action, Badge, Body, Card, Chip, Empty, Field, Heading, Page, Row, useConfirmDelete, palette, ui, useTask } from '../../components/ui';
+import { Action, Badge, Body, Card, Chip, Empty, Field, Heading, Page, Row, useConfirmDelete, palette, typeStyles, ui, useTask } from '../../components/ui';
 import { useKitchen } from '../../data/kitchen';
 import { formatAmount, missingIngredients } from '../../domain/inventory';
 import { recipesForMeal } from '../../domain/meals';
@@ -34,12 +34,12 @@ export default function ShoppingScreen() {
   }
 
   return (
-    <Page title={t("购物清单")} subtitle={t("先看这顿饭还缺什么。")} headerAction={
+    <Page title={t("购物清单")} headerAction={
       <Action label={editor === 'new' ? t("收起") : t("手动添加")} icon={editor === 'new' ? 'remove' : 'add'}
         onPress={() => setEditor(editor === 'new' ? null : 'new')} />
     }>
       {editor === 'new' && <Card><ShoppingEditor onSave={saveItem} /></Card>}
-      <Card>
+      <View style={ui.stack}>
         <Heading>{t("菜单缺料")}</Heading>
         {meals.length ? (
           <Row wrap>
@@ -81,32 +81,32 @@ export default function ShoppingScreen() {
             }} />}
           </>
         )}
-      </Card>
+      </View>
       <Row>
         <Heading>{t("手动清单")}</Heading>
         <Body>{checkedCount}/{shopping.length} {t("已勾选")}</Body>
       </Row>
       {!shopping.length && <Empty icon="basket-outline" title={t("没有手动项目")} description={t("可手动添加临时想买的食材或厨房用品。")} />}
-      {shopping.map((item) => (
-        <Card key={item.id}>
-          <CheckItem item={item} checked={item.checked} disabled={busy}
-            onPress={() => void run(() => write((actions) => actions.setShoppingItemChecked(item.id, !item.checked)))} />
-          <Row wrap>
+      {!!shopping.length && <View style={ui.hairline}>{shopping.map((item) => (
+        <View key={item.id} style={styles.item}>
+          <View style={styles.itemRow}>
+            <CheckItem item={item} checked={item.checked} disabled={busy}
+              onPress={() => void run(() => write((actions) => actions.setShoppingItemChecked(item.id, !item.checked)))} />
             <Action label={editor !== 'new' && editor?.id === item.id ? t("取消编辑") : t("编辑")}
-              variant="quiet" disabled={busy}
+              variant="quiet" icon={editor !== 'new' && editor?.id === item.id ? 'close' : 'create-outline'} iconOnly disabled={busy}
               onPress={() => setEditor(editor !== 'new' && editor?.id === item.id ? null : item)} />
-            <Action label={t("删除")} variant="danger" disabled={busy} onPress={() => confirmDelete(
+            <Action label={t("删除")} variant="danger" icon="trash-outline" iconOnly disabled={busy} onPress={() => confirmDelete(
               t("删除购物项目？"), t("将删除「{0}」。", item.name),
               () => void run(async () => {
                 await write((actions) => actions.deleteShoppingItem(item.id));
                 if (editor !== 'new' && editor?.id === item.id) setEditor(null);
               }),
             )} />
-          </Row>
+          </View>
           {editor !== 'new' && editor?.id === item.id &&
             <ShoppingEditor item={item} onSave={(input) => saveItem(input, item.id)} />}
-        </Card>
-      ))}
+        </View>
+      ))}</View>}
     </Page>
   );
 }
@@ -123,14 +123,14 @@ function AutomaticItem({ item, checked, disabled, onPress, onSave, onDelete }: {
   const confirmDelete = useConfirmDelete();
   const [editing, setEditing] = useState(false);
   return (
-    <View style={ui.stack}>
-      <CheckItem item={item} checked={checked} disabled={disabled} onPress={onPress}
-        note={item.adjusted ? t("已手动调整") : item.needsReview ? t("库存量或单位待核对") : undefined} />
-      <Row wrap>
-        <Action label={editing ? t("取消编辑") : t("编辑")} variant="quiet" disabled={disabled} onPress={() => setEditing(!editing)} />
-        <Action label={t("移除")} variant="danger" disabled={disabled}
+    <View style={styles.item}>
+      <View style={styles.itemRow}>
+        <CheckItem item={item} checked={checked} disabled={disabled} onPress={onPress}
+          note={item.adjusted ? t("已手动调整") : item.needsReview ? t("库存量或单位待核对") : undefined} />
+        <Action label={editing ? t("取消编辑") : t("编辑")} variant="quiet" icon={editing ? 'close' : 'create-outline'} iconOnly disabled={disabled} onPress={() => setEditing(!editing)} />
+        <Action label={t("移除")} variant="danger" icon="trash-outline" iconOnly disabled={disabled}
           onPress={() => confirmDelete(t("移除缺料项目？"), t("将从本餐购物清单移除「{0}」。", item.name), onDelete, t("移除"))} />
-      </Row>
+      </View>
       {editing && <ShoppingEditor item={item} onSave={async (input) => {
         await onSave(input);
         setEditing(false);
@@ -173,18 +173,20 @@ function CheckItem({ item, checked, onPress, note, disabled }: {
     <Pressable accessibilityRole="checkbox" accessibilityLabel={`${name}，${formatAmount(item, english)}${note ? `，${note}` : ''}`}
       accessibilityState={{ checked, disabled }} disabled={disabled} onPress={onPress}
       style={({ pressed }) => [styles.check, pressed && styles.pressed]}>
-      <Ionicons name={checked ? 'checkbox' : 'square-outline'} size={24} color={palette.accent} />
+      <Ionicons name={checked ? 'checkbox' : 'square-outline'} size={20} color={checked ? palette.accent : palette.muted} accessible={false} />
       <View style={ui.grow}>
         <Text style={[ui.itemTitle, checked && styles.checkedText]}>{name}</Text>
         {note && <Body>{note}</Body>}
       </View>
-      <Body>{formatAmount(item, english)}</Body>
+      <Text style={typeStyles.amount}>{formatAmount(item, english)}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  check: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44, paddingVertical: 5 },
+  item: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: palette.line },
+  itemRow: { flexDirection: 'row', alignItems: 'center' },
+  check: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44, paddingVertical: 5 },
   pressed: { opacity: 0.6 },
   checkedText: { color: palette.muted, textDecorationLine: 'line-through' },
 });

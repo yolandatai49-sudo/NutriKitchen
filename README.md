@@ -1,4 +1,4 @@
-# NutriKitchen · 今天吃什么
+# NutriKitchen
 
 个人厨房与营养管理 App。使用 React Native、Expo、TypeScript、Expo Router 和本地 SQLite，支持原生 iPhone 与浏览器。
 
@@ -6,7 +6,7 @@
 
 ## 已实现
 
-- 「找灵感」收录 30 道图文菜谱（19 道中式家常菜，11 道美国日常菜）。手机双列、宽屏三列浏览。照片下方可直接收录；点「看大图」可全屏逐张翻看并打开做法。
+- 「找灵感」收录 30 道图文菜谱（19 道中式家常菜，11 道美国日常菜）。手机双列浏览，网页按窗口宽度增加列数。照片下方可直接收录；点「看大图」可全屏逐张翻看并打开做法。
 - 首页右上角地球图标可切换中文或 English。界面与内置菜谱支持两种语言，自己录入的内容照原样保存。
 - 首次打开时，为空白栏目添加一批可编辑的菜谱、餐单、库存和购物项。营养参考记录不导出，首次录入真实食物后自动清除。
 - 菜谱支持新增、编辑、删除、分类、搜索和收藏，详情提供备料勾选与逐步烹饪。
@@ -60,7 +60,7 @@ TestFlight 与 App Store 发布使用 Apple Developer Program，官方标准费�
 
 ## 网页版
 
-执行 `npm run web`，打开 [http://localhost:8082](http://localhost:8082)。网页使用浏览器里的 SQLite，不要求登录。浏览器数据与 iPhone 数据各自保存；不同域名或浏览器之间也不会自动同步。
+电脑版使用侧栏，窄屏保留底部导航。执行 `npm run web`，打开 [http://localhost:8082](http://localhost:8082)。网页使用浏览器里的 SQLite，不要求登录。浏览器数据与 iPhone 数据各自保存；不同域名或浏览器之间也不会自动同步。
 
 `npm run build:web` 生成可发布的 `dist/`。正式托管使用 HTTPS，将页面路由回退到 `index.html`，并设置 `Cross-Origin-Opener-Policy: same-origin` 和 `Cross-Origin-Embedder-Policy: require-corp`，供 SQLite WebAssembly 运行。Expo Hosting 支持这些响应头，项目已经配置。[Expo SQLite 网页配置](https://docs.expo.dev/versions/latest/sdk/sqlite/#web-setup) · [Expo Hosting 发布说明](https://docs.expo.dev/eas/hosting/get-started/)
 
@@ -90,7 +90,7 @@ npm run check:deps
 npm run doctor
 ```
 
-- npm run check 依次执行 TypeScript、Lint、24 项业务与 SQLite 测试，以及 20 项原生页面组件测试。
+- npm run check 依次执行 TypeScript、Lint、24 项业务与 SQLite 测试，以及 22 项原生页面组件测试。
 - npm run check:deps 检查 Expo SDK 依赖版本。
 - npm run doctor 执行 Expo 官方项目诊断。
 - iOS 生产 JavaScript / Hermes 包可通过下列命令构建。

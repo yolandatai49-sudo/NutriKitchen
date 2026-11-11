@@ -2,6 +2,7 @@ import { useLanguage } from '../../data/language';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
 import type { ColorValue } from 'react-native';
+import { useDesktopLayout } from '../../components/workspace-layout';
 import { palette, type IconName } from '../../components/ui';
 
 function tabIcon(active: IconName, idle: IconName) {
@@ -12,13 +13,14 @@ function tabIcon(active: IconName, idle: IconName) {
 
 export default function TabLayout() {
   const { t } = useLanguage();
+  const desktop = useDesktopLayout();
   return (
     <Tabs screenOptions={{
       headerShown: false,
       tabBarActiveTintColor: palette.ink,
       tabBarInactiveTintColor: palette.muted,
-      tabBarStyle: { backgroundColor: palette.surface, borderTopColor: palette.line },
-      tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
+      tabBarStyle: desktop ? { display: 'none' } : { backgroundColor: palette.surface, borderTopColor: palette.line },
+      tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
     }}>
       <Tabs.Screen name="index" options={{ title: t('菜谱'), tabBarAccessibilityLabel: t('菜谱'), tabBarIcon: tabIcon('compass', 'compass-outline') }} />
       <Tabs.Screen name="menu" options={{ title: t('菜单'), tabBarAccessibilityLabel: t('菜单'), tabBarIcon: tabIcon('restaurant', 'restaurant-outline') }} />
