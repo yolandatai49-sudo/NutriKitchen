@@ -119,6 +119,6 @@ SQLite 文件位于 iPhone 的 App 数据目录。卸载 Expo Go 或删除 App �
 
 本地 main 分支已按模块提交代码。.gitignore 覆盖环境文件、密钥、签名文件、SQLite 数据库和 CSV 导出文件。
 
-GitHub 仓库为 Private。[yolandatai49-sudo/NutriKitchen](https://github.com/yolandatai49-sudo/NutriKitchen)
+项目以 [MIT 许可证](LICENSE) 开源。源代码、提交历史和问题追踪位于 [GitHub 仓库](https://github.com/yolandatai49-sudo/NutriKitchen)。
 
 更详细的实现说明见 [中文开发说明](开发说明.md)。
