@@ -33,6 +33,8 @@ export default function MenuScreen() {
             <Row wrap>
               <Action label="编辑菜单" variant="quiet" icon="create-outline" disabled={busy}
                 onPress={() => router.push({ pathname: '/meals/form', params: { id: String(meal.id) } })} />
+              <Action label="看缺料" variant="quiet" icon="basket-outline"
+                onPress={() => router.navigate({ pathname: '/shopping', params: { mealId: String(meal.id) } })} />
               <Action label="删除" variant="danger" disabled={busy} onPress={() => confirmDelete(
                 '删除这顿饭？', `将删除「${meal.name}」菜单。`,
                 () => void run(() => write((actions) => actions.deleteMeal(meal.id))),

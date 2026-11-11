@@ -1,6 +1,7 @@
 import type { Ingredient, Recipe, RecipeInput } from '../domain/recipes.ts';
 import type { MealInput, MealPlan } from '../domain/meals.ts';
 import type { StockItem } from '../domain/inventory.ts';
+import type { ShoppingCheck, ShoppingItem } from '../domain/shopping.ts';
 
 type SqlValue = string | number | null;
 
@@ -41,6 +42,20 @@ const migrations = [`
     name TEXT NOT NULL,
     quantity REAL CHECK (quantity > 0),
     unit TEXT NOT NULL
+  );
+`, `
+  CREATE TABLE shopping_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    quantity REAL CHECK (quantity > 0),
+    unit TEXT NOT NULL,
+    checked INTEGER NOT NULL DEFAULT 0 CHECK (checked IN (0, 1))
+  );
+  CREATE TABLE shopping_checks (
+    meal_id INTEGER NOT NULL REFERENCES meals(id) ON DELETE CASCADE,
+    ingredient_key TEXT NOT NULL,
+    amount_key TEXT NOT NULL,
+    PRIMARY KEY (meal_id, ingredient_key)
   );
 `];
 
@@ -103,7 +118,14 @@ export async function loadKitchen(db: KitchenDatabase) {
   }
   const meals: MealPlan[] = mealRows.map((meal) => ({ ...meal, recipeIds: recipeIdsByMeal.get(meal.id) ?? [] }));
   const stock = await db.getAllAsync<StockItem>('SELECT * FROM stock ORDER BY id DESC');
-  return { recipes, meals, stock };
+  const shoppingRows = await db.getAllAsync<Omit<ShoppingItem, 'checked'> & { checked: number }>(
+    'SELECT * FROM shopping_items ORDER BY id DESC',
+  );
+  const shopping = shoppingRows.map((item) => ({ ...item, checked: Boolean(item.checked) }));
+  const shoppingChecks = await db.getAllAsync<ShoppingCheck>(
+    'SELECT meal_id AS mealId, ingredient_key AS ingredientKey, amount_key AS amountKey FROM shopping_checks',
+  );
+  return { recipes, meals, stock, shopping, shoppingChecks };
 }
 
 export function kitchenActions(db: KitchenDatabase) {
@@ -156,6 +178,36 @@ export function kitchenActions(db: KitchenDatabase) {
     },
     async deleteStock(id: number) {
       await db.runAsync('DELETE FROM stock WHERE id = ?', id);
+    },
+    async saveShoppingItem(input: Ingredient, id?: number) {
+      if (id === undefined) {
+        await db.runAsync(
+          'INSERT INTO shopping_items (name, quantity, unit) VALUES (?, ?, ?)', input.name, input.quantity, input.unit,
+        );
+      } else {
+        await db.runAsync(
+          'UPDATE shopping_items SET name = ?, quantity = ?, unit = ? WHERE id = ?', input.name, input.quantity, input.unit, id,
+        );
+      }
+    },
+    async setShoppingItemChecked(id: number, checked: boolean) {
+      await db.runAsync('UPDATE shopping_items SET checked = ? WHERE id = ?', Number(checked), id);
+    },
+    async deleteShoppingItem(id: number) {
+      await db.runAsync('DELETE FROM shopping_items WHERE id = ?', id);
+    },
+    async setShoppingCheck(check: ShoppingCheck, checked: boolean) {
+      if (checked) {
+        await db.runAsync(
+          `INSERT INTO shopping_checks (meal_id, ingredient_key, amount_key) VALUES (?, ?, ?)
+           ON CONFLICT (meal_id, ingredient_key) DO UPDATE SET amount_key = excluded.amount_key`,
+          check.mealId, check.ingredientKey, check.amountKey,
+        );
+      } else {
+        await db.runAsync(
+          'DELETE FROM shopping_checks WHERE meal_id = ? AND ingredient_key = ?', check.mealId, check.ingredientKey,
+        );
+      }
     },
   };
 }

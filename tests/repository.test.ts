@@ -15,10 +15,11 @@ function open(path: string) {
       return { lastInsertRowId: Number(lastInsertRowid) };
     },
     async getAllAsync<T>(sql: string, ...params: (string | number | null)[]) {
-      return native.prepare(sql).all(...params) as T[];
+      return native.prepare(sql).all(...params).map((row) => ({ ...row }) as T);
     },
     async getFirstAsync<T>(sql: string, ...params: (string | number | null)[]) {
-      return (native.prepare(sql).get(...params) as T | undefined) ?? null;
+      const row = native.prepare(sql).get(...params);
+      return row ? ({ ...row } as T) : null;
     },
   };
   return { db, close: () => native.close() };
@@ -72,6 +73,42 @@ test('stores menu selection order and rolls back changes if a selected recipe is
     assert.deepEqual((await loadKitchen(db)).meals[0].recipeIds, [soup]);
     await actions.deleteMeal(id);
     assert.deepEqual((await loadKitchen(db)).meals, []);
+  } finally {
+    close();
+  }
+});
+
+test('updates stock and manual shopping items and stores checked shortages per meal', async () => {
+  const { db, close } = open(':memory:');
+  try {
+    await initializeDatabase(db);
+    const actions = kitchenActions(db);
+    const ingredient = { name: '番茄', quantity: 250, unit: '克' };
+    await actions.addStock(ingredient);
+    const stock = (await loadKitchen(db)).stock[0];
+    assert.deepEqual(stock, { ...ingredient, id: 1 });
+    await actions.deleteStock(stock.id);
+    const recipeId = await actions.saveRecipe({
+      title: '番茄汤', category: '汤', ingredients: [ingredient], steps: ['煮。'], sourceUrl: null, pending: false,
+    });
+    const mealId = await actions.saveMeal({ name: '午饭', day: '2026-11-10', recipeIds: [recipeId] });
+    const check = { mealId, ingredientKey: 'tomato', amountKey: '250' };
+    await actions.setShoppingCheck(check, true);
+    await actions.setShoppingCheck({ ...check, amountKey: '200' }, true);
+    await actions.saveShoppingItem(ingredient);
+    const itemId = (await loadKitchen(db)).shopping[0].id;
+    await actions.setShoppingItemChecked(itemId, true);
+    await actions.saveShoppingItem({ ...ingredient, quantity: 500 }, itemId);
+
+    const data = await loadKitchen(db);
+    assert.deepEqual(data.stock, []);
+    assert.deepEqual(data.shoppingChecks, [{ ...check, amountKey: '200' }]);
+    assert.deepEqual(data.shopping, [{ ...ingredient, id: itemId, quantity: 500, checked: true }]);
+    await actions.deleteShoppingItem(itemId);
+    await actions.deleteMeal(mealId);
+    const deleted = await loadKitchen(db);
+    assert.deepEqual(deleted.shopping, []);
+    assert.deepEqual(deleted.shoppingChecks, []);
   } finally {
     close();
   }
